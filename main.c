@@ -1,4 +1,5 @@
 #include <complex.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -62,7 +63,7 @@ int getNextKeyValue(
 							keyPos++;
 						}
 						else {
-							printf("Key length exceeded!");
+							fprintf(stderr,"Key length exceeded!");
 							return -1;
 						}
 					}
@@ -73,7 +74,7 @@ int getNextKeyValue(
 						keyPos++;
 					}
 					else {
-						printf("Key length exceeded!");
+						fprintf(stderr, "Key length exceeded!");
 						return -1;
 					}
 					charState = REGULAR;
@@ -143,7 +144,7 @@ int getNextKeyValue(
 			}
 			break;
 		default:
-			printf("Invalid branch(%i) reached!", state);
+			fprintf(stderr, "Invalid branch(%i) reached!", state);
 			exit(1);
 		}
 	}
@@ -154,7 +155,7 @@ int getNextKeyValue(
 	}
 	
 	if (keyPos >= keySize || valuePos >= valueSize) {
-		printf("Uncaught buffer overload in keyValuePairParsing.\n");
+		fprintf(stderr, "Uncaught buffer overload in keyValuePairParsing.\n");
 		exit(1);
 	}
 
@@ -207,7 +208,7 @@ int getPost(FILE* pagefile, char** outStr) {
 	while((c = getc(pagefile))) {
 		if (c == -1) {
 			*outStr = post;
-			printf("Error while seeking.");
+			fprintf(stderr, "Error while seeking.");
 			return 1;
 		}
 		if (c == '}' || c == -1) {
@@ -228,7 +229,7 @@ int getPost(FILE* pagefile, char** outStr) {
 		else escaped = NO;
 		if (c == -1) {
 			*outStr = post;
-			printf("Error while parsing.");
+			fprintf(stderr, "Error while parsing.");
 			return 1;
 		}
 		if (c == '{' && inComment == NO) depth++;
@@ -240,7 +241,7 @@ int getPost(FILE* pagefile, char** outStr) {
 		if (pos == postSize - 1) {
 			post = realloc(post, postSize*2);
 			if (post == NULL) {
-				printf("Reallocation in getPost failed!");
+				fprintf(stderr, "Reallocation in getPost failed!");
 				exit(-1);
 			}
 			postSize = postSize * 2;
@@ -261,7 +262,7 @@ int savePost(struct Post post) {
 	if (postListPos >= postListSize) {
 		postList = realloc(postList, sizeof(struct Post)*(postListSize+50));
 		if (postList == NULL) {
-			printf("Failed to allocate more space for postList!");
+			fprintf(stderr, "Failed to allocate more space for postList!");
 			exit(1);
 		}
 		postListSize += 50;
@@ -286,8 +287,18 @@ void printAllPosts() {
 	}
 }
 
+int checkFilter(struct Post post, char filterTerm[]) {
+	for(int i = 0; post.title[i]; i++){
+		post.title[i] = tolower(post.title[i]);
+	}
+	for(int i = 0; filterTerm[i]; i++){
+		filterTerm[i] = tolower(filterTerm[i]);
+	}
+	printf("\nChecking [%s] against [%s];", filterTerm, post.title);
+	return ((strstr(post.title, filterTerm) != NULL) ? 1 : 0);
+}
 
-int processPost(char* str) {
+int processPost(char* str, char filterTerm[]) {
 	struct Post post;
 	post.id[0] = '\0';
 	post.service[0] = '\0';
@@ -299,7 +310,7 @@ int processPost(char* str) {
 	char* key = malloc(sizeof(char)*20);
 	char* value = malloc(sizeof(char)*70);
 	if (key == NULL || value == NULL) {
-		printf("Key or Value allocation failed!");
+		fprintf(stderr, "Key or Value allocation failed!");
 		exit(1);
 	}
 	while (pos != -1) {
@@ -314,7 +325,7 @@ int processPost(char* str) {
 	}
 	free(key);
 	free(value);
-	savePost(post);
+	if (checkFilter(post, filterTerm)) savePost(post);
 	//printPost(post);
 	return 0;
 }
@@ -357,14 +368,14 @@ loopstart:
 				curl_easy_setopt(curl_handler, CURLOPT_SSL_SESSIONID_CACHE, 0);
 				CURLcode res = curl_easy_perform(curl_handler);
 				if (res != CURLE_OK) {
-					printf("CURL FAILED due to: %s", curl_easy_strerror(res));
+					fprintf(stderr, "CURL FAILED due to: %s", curl_easy_strerror(res));
 				}
 				rewind(userFile);
 				char* userPageBuffer = NULL;
 				size_t userPageLen;
 				ssize_t bytes_read = getdelim(&userPageBuffer, &userPageLen, '\0', userFile);
 				if (bytes_read == -1) {
-					printf("userFile to buffer read failed!");
+					fprintf(stderr, "userFile to buffer read failed!");
 					exit(1);
 				}
 				int pos = 0;
@@ -377,7 +388,7 @@ loopstart:
 						break;
 					}
 					if (strcmp(key, "error") == 0 || pos == -1) {
-						printf("Failed to get name of user #%i. Error: %s Repeating...\n", i, (pos == -1 ? "" : value));
+						fprintf(stderr, "Failed to get name of user #%i. Error: %s Repeating...\n", i, (pos == -1 ? "" : value));
 						failed = 1;
 						lastName[0] = '\0'; 
 					}
@@ -386,7 +397,7 @@ loopstart:
 				free(value);
 				free(userPageBuffer);
 			} else {
-				printf("Failed to open userFile on user #%i in findUsernames()!", i);
+				fprintf(stderr, "Failed to open userFile on user #%i in findUsernames()!", i);
 				failed_page = 1;
 				failed_count++;
 			}
@@ -411,7 +422,7 @@ int main(int argc, char** args) {
 	int maxPost = 1;
 	postList = malloc(sizeof(struct Post)*50);
 	if (postList == NULL) {
-		printf("Failed to allocate space for memoryList.");
+		fprintf(stderr, "Failed to allocate space for memoryList.");
 		exit(1);
 	}
 	postListSize = 50;
@@ -422,6 +433,7 @@ int main(int argc, char** args) {
 	searchTerm[strcspn(searchTerm, "\n")] = 0;
 	printf("Enter Filter term: ");
 	fgets(filterTerm, sizeof(filterTerm), stdin);
+	filterTerm[strcspn(filterTerm, "\n")] = 0;
 	stringEncode(searchTerm, strlen(searchTerm));
 	strcat(urlbase, searchTerm);
 	printf("\nFull URL base: %s", urlbase);
@@ -440,17 +452,17 @@ int main(int argc, char** args) {
 			curl_easy_setopt(easy_handler, CURLOPT_WRITEDATA, pagefile);
 			CURLcode res = curl_easy_perform(easy_handler);
 			if (res != CURLE_OK) {
-				printf("CURL FAILED");
+				fprintf(stderr, "CURL FAILED");
 			}
 		} else {
-			printf("Failed to open pagefile!");
+			fprintf(stderr, "Failed to open pagefile!");
 			exit(-1);
 		}
 		rewind(pagefile);
 		if (postVar == 0) {
 			int count = getCount(pagefile);
 			if (count == -1) {
-				printf("Failed to get page - No count value!");
+				fprintf(stderr, "Failed to get page - No count value!");
 			}
 			printf("Post Count: %d", count);
 			if (count > 5500) {
@@ -469,7 +481,7 @@ int main(int argc, char** args) {
 				free(postStr);
 				break;
 			}
-			processPost(postStr);
+			processPost(postStr, filterTerm);
 			free(postStr);
 		}
 
