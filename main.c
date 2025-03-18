@@ -1,11 +1,17 @@
+#include <assert.h>
 #include <complex.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <curl/curl.h>
 #include <string.h>
 #include <malloc.h>
+#ifdef __linux__
+	#include <unistd.h>
+#elif _WIN32
+	#include <windows.h>
+	#define usleep(X) sleep(X/1000) 
+#endif
 
 #define USERID_LEN 10
 
@@ -26,7 +32,7 @@ int getNextKeyValue(
 		char* str, int start, 
 		char** keyOut, int keySize, 
 		char** valueOut, int valueSize) {
-
+	assert(valueSize > 6);
 	int strLen = strlen(str);
 	//printf("Parsing {%s} from index %i.", str, start);
 	int keyPos = 0, valuePos = 0;
@@ -105,8 +111,8 @@ int getNextKeyValue(
 			switch (charState) {
 				case REGULAR:
 					if (str[start+i] == '"') state = ENDOFVALUE;
-					else if (str[start+i] == '\\') charState = ESCAPED;
 					else {
+						if (str[start+i] == '\\') charState = ESCAPED;
 						if (valuePos < valueSize - 1) {
 							(*valueOut)[valuePos] = str[start+i];
 							valuePos++;
@@ -115,6 +121,8 @@ int getNextKeyValue(
 							(*valueOut)[valueSize-2] = '.';
 							(*valueOut)[valueSize-3] = '.';
 							(*valueOut)[valueSize-4] = '.';
+							if ((*valueOut)[valueSize-5] == '\\' && (*valueOut)[valueSize-6] != '\\')
+								(*valueOut)[valueSize-5] = '.';
 							state = SEEKEND;
 						}
 					}
@@ -130,6 +138,7 @@ int getNextKeyValue(
 						(*valueOut)[valueSize-4] = '.';
 						state = SEEKEND;
 					}
+					charState = REGULAR;
 					break;
 			}
 			break;
@@ -391,6 +400,7 @@ loopstart:
 						fprintf(stderr, "Failed to get name of user #%i. Error: %s Repeating...\n", i, (pos == -1 ? "" : value));
 						failed = 1;
 						lastName[0] = '\0'; 
+						usleep(3000000);
 					}
 				}
 				free(key);
@@ -411,6 +421,29 @@ loopstart:
 	return 0;
 }
 
+void ouputJson(FILE* jsonFile) {
+	fprintf(jsonFile, "[");
+	char lastUser[USERID_LEN];
+	int firstEntry = 0;
+	for (int i = 0; i < postListPos; i++) {
+		firstEntry = 0;
+		if (i == 0) {
+			snprintf(lastUser, USERID_LEN, "%s", postList[i].user);
+			fprintf(jsonFile, "{\"id\":\"%s\",\"name\":\"%s\",\"entries\":[", lastUser, postList[i].userName);
+			firstEntry = 1;
+		}
+		else if (strcmp(lastUser, postList[i].user) != 0) {
+			snprintf(lastUser, USERID_LEN, "%s", postList[i].user);
+			fprintf(jsonFile, "]},{\"id\":\"%s\",\"name\":\"%s\",\"entries\":[", lastUser, postList[i].userName);
+			firstEntry = 1;
+		}
+		if (!firstEntry) fprintf(jsonFile, ",");
+		fprintf(jsonFile, "{\"id\":\"%s\",\"published\":\"%s\",\"service\":\"%s\",\"title\":\"%s\",\"link\":\"https://kemono.su/%s/user/%s/post/%s\"}", 
+				postList[i].id, postList[i].published, postList[i].service, postList[i].title, postList[i].service, postList[i].user, postList[i].id);
+	}
+	if (postListPos != 0) fprintf(jsonFile, "]}");
+	fprintf(jsonFile, "]");
+}
 
 int main(int argc, char** args) {
 	static char urlbase[130] = "https://kemono.su/api/v1/posts?q=";
@@ -511,6 +544,9 @@ int main(int argc, char** args) {
 	findUsernames();
 
 	printAllPosts();
-
+	FILE* jsonFile;
+	jsonFile = fopen("json.txt", "w");
+	ouputJson(jsonFile);
+	fclose(jsonFile);
 	return 0;
 }
