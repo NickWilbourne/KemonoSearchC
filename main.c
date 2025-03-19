@@ -350,6 +350,24 @@ int comparePosts(const void* pv1, const void* pv2) {
 	}	
 }
 
+size_t readUntil(char **buffer, size_t* bufferLen, char deliminator, FILE* inputFile) {
+	char ch;
+	char *outStr;
+	*bufferLen = 0;
+	outStr = malloc(0);
+	while ((ch = getc(inputFile))) {
+		if (ch == deliminator || ch == -1) break;
+		outStr = realloc(outStr, sizeof(char)*(++(*bufferLen)));
+		if (outStr == NULL) return -1;
+		outStr[(*bufferLen)-1] = ch;
+	}
+	outStr = realloc(outStr, sizeof(char)*((*bufferLen)+1));
+	if (outStr == NULL) return -1;
+	outStr[*bufferLen] = '\0';
+	*buffer = outStr;
+	return *bufferLen;
+}
+
 int findUsernames() {
 	FILE* userFile;
 	char lastName[25];	
@@ -382,7 +400,7 @@ loopstart:
 				rewind(userFile);
 				char* userPageBuffer = NULL;
 				size_t userPageLen;
-				ssize_t bytes_read = getdelim(&userPageBuffer, &userPageLen, '\0', userFile);
+				ssize_t bytes_read = readUntil(&userPageBuffer, &userPageLen, '\0', userFile);
 				if (bytes_read == -1) {
 					fprintf(stderr, "userFile to buffer read failed!");
 					exit(1);
