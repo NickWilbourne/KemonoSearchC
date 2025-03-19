@@ -464,6 +464,12 @@ void ouputJson(FILE* jsonFile) {
 }
 
 int main(int argc, char** args) {
+	int useExternalJsonFile = 0;
+	char externalJson[260];
+	if (argc == 2) {
+		useExternalJsonFile = 1;
+		snprintf(externalJson, 260, "%s", args[1]);
+	}
 	static char urlbase[130] = "https://kemono.su/api/v1/posts?q=";
 	char searchTerm[40];
 	char filterTerm[40];
@@ -563,8 +569,12 @@ int main(int argc, char** args) {
 
 	printAllPosts();
 	FILE* jsonFile;
-	jsonFile = fopen("json.txt", "w");
-	ouputJson(jsonFile);
-	fclose(jsonFile);
+	if (useExternalJsonFile) {
+		jsonFile = fopen(externalJson, "w");
+		ouputJson(jsonFile);
+		fclose(jsonFile);
+	} else {
+		ouputJson(stdout);
+	}
 	return 0;
 }
