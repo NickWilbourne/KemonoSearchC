@@ -10,7 +10,7 @@
 	#include <unistd.h>
 #elif _WIN32
 	#include <windows.h>
-	#define usleep(X) sleep(X/1000) 
+	#define usleep(X) Sleep(X/1000) 
 #endif
 
 #define USERID_LEN 10
