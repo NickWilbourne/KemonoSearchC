@@ -28,6 +28,15 @@ struct Post* postList;
 int postListSize = 0;
 int postListPos = 0;
 
+int notANumber(char* str) {
+	int i = 0;
+	while (str[i] != '\0') {
+		if (str[i] < 0x30 || str[i] > 0x39) return 1;
+		i++;
+	}
+	return 0;
+}
+
 int getNextKeyValue(
 		char* str, int start, 
 		char** keyOut, int keySize, 
@@ -308,6 +317,7 @@ int checkFilter(struct Post post, char filterTerm[]) {
 }
 
 int processPost(char* str, char filterTerm[]) {
+	int postValid = 1;
 	struct Post post;
 	post.id[0] = '\0';
 	post.service[0] = '\0';
@@ -326,15 +336,21 @@ int processPost(char* str, char filterTerm[]) {
 		pos = getNextKeyValue(str, pos, &key, 20, &value, 70);
 		if (pos == -1) break;
 		//printf("[\"%s\":\"%s\";\"%i\"]", key, value, pos);
-		if (strcmp(key, "id") == 0) snprintf(post.id, 10, "%s", value);
-		if (strcmp(key, "user") == 0) snprintf(post.user, USERID_LEN, "%s", value);
+		if (strcmp(key, "id") == 0) {
+			snprintf(post.id, 10, "%s", value);
+			if (notANumber(post.id)) postValid = 0;
+		}
+		if (strcmp(key, "user") == 0) {
+			snprintf(post.user, USERID_LEN, "%s", value);
+			if (notANumber(post.user)) postValid = 0;
+		}
 		if (strcmp(key, "service") == 0) snprintf(post.service, 15, "%s", value);
 		if (strcmp(key, "title") == 0) snprintf(post.title, 70, "%s", value);
 		if (strcmp(key, "published") == 0) snprintf(post.published, 20, "%s", value);
 	}
 	free(key);
 	free(value);
-	if (checkFilter(post, filterTerm)) savePost(post);
+	if (checkFilter(post, filterTerm) && postValid) savePost(post);
 	//printPost(post);
 	return 0;
 }
@@ -416,6 +432,10 @@ loopstart:
 					}
 					if (strcmp(key, "error") == 0 || pos == -1) {
 						fprintf(stderr, "Failed to get name of user #%i. Error: %s Repeating...\n", i, (pos == -1 ? "" : value));
+						if (!strcmp(value, "Creator not found.")) {
+							printf("Cancel. Continue.");
+							break;
+						}
 						failed = 1;
 						lastName[0] = '\0'; 
 						usleep(3000000);
@@ -465,10 +485,16 @@ void ouputJson(FILE* jsonFile) {
 
 int main(int argc, char** args) {
 	int useExternalJsonFile = 0;
+	int bypassPostLimit = 0;
 	char externalJson[260];
-	if (argc == 2) {
+	if (argc >= 2) {
 		useExternalJsonFile = 1;
 		snprintf(externalJson, 260, "%s", args[1]);
+		if (argc == 3) {
+			if (!strcmp(args[2], "-u")) {
+				bypassPostLimit = 1;
+			}
+		}
 	}
 	static char urlbase[130] = "https://kemono.su/api/v1/posts?q=";
 	char searchTerm[40];
@@ -522,7 +548,7 @@ int main(int argc, char** args) {
 				fprintf(stderr, "Failed to get page - No count value!");
 			}
 			printf("Post Count: %d", count);
-			if (count > 5500) {
+			if (count > 5500 && !bypassPostLimit) {
 				printf("\nNarrow search to below 5000 results to avoid DDoS protection!\n");
 				exit(1);
 			}
@@ -571,6 +597,10 @@ int main(int argc, char** args) {
 	FILE* jsonFile;
 	if (useExternalJsonFile) {
 		jsonFile = fopen(externalJson, "w");
+		if (!jsonFile) {
+			printf("Failed to open external json file.");
+			exit(1);
+		}
 		ouputJson(jsonFile);
 		fclose(jsonFile);
 	} else {
