@@ -425,7 +425,7 @@ loopstart:
 				rewind(userFile);
 				char* userPageBuffer = NULL;
 				size_t userPageLen;
-				ssize_t bytes_read = readUntil(&userPageBuffer, &userPageLen, '\0', userFile);
+				size_t bytes_read = readUntil(&userPageBuffer, &userPageLen, '\0', userFile);
 				if (bytes_read == -1) {
 					fprintf(stderr, "userFile to buffer read failed!");
 					exit(1);
