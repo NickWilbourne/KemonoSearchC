@@ -1,5 +1,4 @@
 #include <assert.h>
-#include <complex.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -373,12 +372,22 @@ size_t readUntil(char **buffer, size_t* bufferLen, char deliminator, FILE* input
 	outStr = malloc(0);
 	while ((ch = getc(inputFile))) {
 		if (ch == deliminator || ch == -1) break;
-		outStr = realloc(outStr, sizeof(char)*(++(*bufferLen)));
-		if (outStr == NULL) return -1;
+		void* tmpPtr = realloc(outStr, sizeof(char)*(++(*bufferLen)));
+		if (tmpPtr == NULL) {
+			free(outStr);
+			return -1;
+		} else {
+			outStr = tmpPtr;
+		}
 		outStr[(*bufferLen)-1] = ch;
 	}
-	outStr = realloc(outStr, sizeof(char)*((*bufferLen)+1));
-	if (outStr == NULL) return -1;
+	void* tmpPtr = realloc(outStr, sizeof(char)*((*bufferLen)+1));
+	if (tmpPtr == NULL) {
+		free(outStr);
+		return -1;
+	} else {
+		outStr = tmpPtr;
+	}
 	outStr[*bufferLen] = '\0';
 	*buffer = outStr;
 	return *bufferLen;
@@ -499,7 +508,7 @@ int main(int argc, char** args) {
 	static char urlbase[130] = "https://kemono.su/api/v1/posts?q=";
 	char searchTerm[40];
 	char filterTerm[40];
-	FILE* pagefile;
+	FILE* pagefile = NULL;
 	int runLoop = 1;
 	int postVar = 0;
 	int maxPost = 1;
