@@ -457,6 +457,7 @@ loopstart:
 				free(key);
 				free(value);
 				free(userPageBuffer);
+				fclose(userFile);
 			} else {
 				fprintf(stderr, "\e[1;91mFailed to open userFile on user #%i in findUsernames()!\e[m", i);
 				failed_page = 1;
@@ -465,7 +466,10 @@ loopstart:
 		}
 		snprintf(postList[i].userName, 25, "%s", lastName);
 		if (failed_count > 5 && failed_page) exit(1);
-		if (failed || failed_page) goto loopstart;
+		if (failed || failed_page) {
+			usleep(1000);
+			goto loopstart;
+		}
 		failed_count = 0;
 	}
 	curl_easy_cleanup(curl_handler);
@@ -595,11 +599,11 @@ int main(int argc, char** args) {
 		}
 		printProgress(postVar, maxPost);
 		fflush(stdout);
+		fclose(pagefile);
 		//usleep(1000000);
 	}
 	curl_easy_cleanup(easy_handler);
 
-	fclose(pagefile);
 
 	printf("Sorting %i posts.", postListPos);
 	qsort(postList, postListPos, sizeof(struct Post), comparePosts);
