@@ -438,6 +438,7 @@ loopstart:
 				char* key = malloc(sizeof(char)*20);
 				char* value = malloc(sizeof(char)*70);
 				while (pos != -1) {
+					value[0] = '\0';
 					pos = getNextKeyValue(userPageBuffer, pos, &key, 20, &value, 70);
 					if (strcmp(key, "name") == 0) {
 						snprintf(lastName, 25, "%s", value);
