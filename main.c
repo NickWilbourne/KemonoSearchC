@@ -104,7 +104,7 @@ int getNextKeyValue(
 							keyPos++;
 						}
 						else {
-							fprintf(stderr,"\e[91mKey length exceeded!\e[m");
+							fprintf(stderr,"\033[91mKey length exceeded!\033[m");
 							return -1;
 						}
 					}
@@ -115,7 +115,7 @@ int getNextKeyValue(
 						keyPos++;
 					}
 					else {
-						fprintf(stderr, "\e[91mKey length exceeded!\e[m");
+						fprintf(stderr, "\033[91mKey length exceeded!\033[m");
 						return -1;
 					}
 					charState = REGULAR;
@@ -188,7 +188,7 @@ int getNextKeyValue(
 			}
 			break;
 		default:
-			fprintf(stderr, "\e[1;91mInvalid branch(\e[;40101m%i\e[1;91m) reached!\e[m", state);
+			fprintf(stderr, "\033[1;91mInvalid branch(\033[;40101m%i\033[1;91m) reached!\033[m", state);
 			exit(1);
 		}
 	}
@@ -199,7 +199,7 @@ int getNextKeyValue(
 	}
 	
 	if (keyPos >= keySize || valuePos >= valueSize) {
-		fprintf(stderr, "\e[1;91mUncaught buffer overload in keyValuePairParsing.\e[m\n");
+		fprintf(stderr, "\033[1;91mUncaught buffer overload in keyValuePairParsing.\033[m\n");
 		exit(1);
 	}
 
@@ -223,7 +223,7 @@ int getCount(FILE* pageFile) {
 
 int printProgress(int prog, int total) {
 	if (total == 0) {
-		printf("\e[91mNo Pages!\e[m");
+		printf("\033[91mNo Pages!\033[m");
 		return -1;
 	}
 	char bar[51];
@@ -233,7 +233,7 @@ int printProgress(int prog, int total) {
 	for (i = 0; i < points; i++) bar[i] = '#';
 	for (;i<50;i++) bar[i] = '-';
 	bar[50] = '\0';
-	printf("\n%s\e[107;30m[%i/%i]\e[m", bar, prog, total);
+	printf("\n%s\033[107;30m[%i/%i]\033[m", bar, prog, total);
 	return 0;
 }
 
@@ -252,7 +252,7 @@ int getPost(FILE* pagefile, char** outStr) {
 	while((c = getc(pagefile))) {
 		if (c == -1) {
 			*outStr = post;
-			fprintf(stderr, "\e[1;91mError while seeking.\e[m");
+			fprintf(stderr, "\033[1;91mError while seeking.\033[m");
 			return 1;
 		}
 		if (c == '}' || c == -1) {
@@ -273,7 +273,7 @@ int getPost(FILE* pagefile, char** outStr) {
 		else escaped = NO;
 		if (c == -1) {
 			*outStr = post;
-			fprintf(stderr, "\e[1;91mError while parsing.\e[m");
+			fprintf(stderr, "\033[1;91mError while parsing.\033[m");
 			return 1;
 		}
 		if (c == '{' && inComment == NO) depth++;
@@ -285,7 +285,7 @@ int getPost(FILE* pagefile, char** outStr) {
 		if (pos == postSize - 1) {
 			post = realloc(post, postSize*2);
 			if (post == NULL) {
-				fprintf(stderr, "\e[1;91mReallocation in getPost failed!\e[m");
+				fprintf(stderr, "\033[1;91mReallocation in getPost failed!\033[m");
 				exit(-1);
 			}
 			postSize = postSize * 2;
@@ -306,7 +306,7 @@ int savePost(struct Post post) {
 	if (postListPos >= postListSize) {
 		postList = realloc(postList, sizeof(struct Post)*(postListSize+50));
 		if (postList == NULL) {
-			fprintf(stderr, "\e[1;91mFailed to allocate more space for postList!\e[m");
+			fprintf(stderr, "\033[1;91mFailed to allocate more space for postList!\033[m");
 			exit(1);
 		}
 		postListSize += 50;
@@ -318,8 +318,8 @@ int savePost(struct Post post) {
 }
 
 void printPost(struct Post post) {
-	if (notANumber(post.user)) printf("\e[91m");
-	printf("\nID: %s, USER: %s, NAME: %s, SERVICE: %s, DATE: %s, TITLE: %s\e[m", post.id, post.user, post.userName, post.service, post.published, post.title);
+	if (notANumber(post.user)) printf("\033[91m");
+	printf("\nID: %s, USER: %s, NAME: %s, SERVICE: %s, DATE: %s, TITLE: %s\033[m", post.id, post.user, post.userName, post.service, post.published, post.title);
 	fflush(stdout);
 }
 
@@ -378,7 +378,7 @@ int processPost(char* str, char filterTerm[]) {
 	if (notANumber(post.id)) postValid = 0;
 	if (notANumber(post.user)) postValid = 0;
 	if (checkFilter(post, filterTerm) && postValid) savePost(post);
-	else printf("\e[1;91mPOST REJECTED\e[m\n");
+	else printf("\033[1;91mPOST REJECTED\033[m\n");
 	printPost(post);
 	return 0;
 }
@@ -449,14 +449,14 @@ loopstart:
 				curl_easy_setopt(curl_handler, CURLOPT_SSL_SESSIONID_CACHE, 0);
 				CURLcode res = curl_easy_perform(curl_handler);
 				if (res != CURLE_OK) {
-					fprintf(stderr, "\e[1;91mCURL FAILED due to: %s\e[m", curl_easy_strerror(res));
+					fprintf(stderr, "\033[1;91mCURL FAILED due to: %s\033[m", curl_easy_strerror(res));
 				}
 				rewind(userFile);
 				char* userPageBuffer = NULL;
 				size_t userPageLen;
-				ssize_t bytes_read = readUntil(&userPageBuffer, &userPageLen, '\0', userFile);
+				size_t bytes_read = readUntil(&userPageBuffer, &userPageLen, '\0', userFile);
 				if (bytes_read == -1) {
-					fprintf(stderr, "\e[1;91muserFile to buffer read failed!\e[m");
+					fprintf(stderr, "\033[1;91muserFile to buffer read failed!\033[m");
 					exit(1);
 				}
 				int pos = 0;
@@ -470,9 +470,9 @@ loopstart:
 						break;
 					}
 					if (strcmp(key, "error") == 0 || pos == -1) {
-						fprintf(stderr, "\e[91mFailed to get name of user #%i. Error: %s Repeating...\e[m\n", i, (pos == -1 ? "" : value));
+						fprintf(stderr, "\033[91mFailed to get name of user #%i. Error: %s Repeating...\033[m\n", i, (pos == -1 ? "" : value));
 						if (!strcmp(value, "Creator not found.")) {
-							printf("\e[92mCancel. Continue.\e[m");
+							printf("\033[92mCancel. Continue.\033[m");
 							break;
 						}
 						failed = 1;
@@ -485,7 +485,7 @@ loopstart:
 				free(userPageBuffer);
 				fclose(userFile);
 			} else {
-				fprintf(stderr, "\e[1;91mFailed to open userFile on user #%i in findUsernames()!\e[m", i);
+				fprintf(stderr, "\033[1;91mFailed to open userFile on user #%i in findUsernames()!\033[m", i);
 				failed_page = 1;
 				failed_count++;
 			}
