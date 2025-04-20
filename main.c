@@ -29,11 +29,13 @@ int postListPos = 0;
 
 int notANumber(char* str) {
 	int i = 0;
+	int isBlank = 1;
 	while (str[i] != '\0') {
+		isBlank = 0;
 		if (str[i] < 0x30 || str[i] > 0x39) return 1;
 		i++;
 	}
-	return 0;
+	return isBlank;
 }
 
 int getNextKeyValue(
@@ -291,7 +293,8 @@ int savePost(struct Post post) {
 }
 
 void printPost(struct Post post) {
-	printf("\nID: %s, USER: %s, NAME: %s, SERVICE: %s, DATE: %s, TITLE: %s", post.id, post.user, post.userName, post.service, post.published, post.title);
+	if (notANumber(post.user)) printf("\e[91m");
+	printf("\nID: %s, USER: %s, NAME: %s, SERVICE: %s, DATE: %s, TITLE: %s\e[m", post.id, post.user, post.userName, post.service, post.published, post.title);
 	fflush(stdout);
 }
 
@@ -337,11 +340,9 @@ int processPost(char* str, char filterTerm[]) {
 		//printf("[\"%s\":\"%s\";\"%i\"]", key, value, pos);
 		if (strcmp(key, "id") == 0) {
 			snprintf(post.id, 10, "%s", value);
-			if (notANumber(post.id)) postValid = 0;
 		}
 		if (strcmp(key, "user") == 0) {
 			snprintf(post.user, USERID_LEN, "%s", value);
-			if (notANumber(post.user)) postValid = 0;
 		}
 		if (strcmp(key, "service") == 0) snprintf(post.service, 15, "%s", value);
 		if (strcmp(key, "title") == 0) snprintf(post.title, 70, "%s", value);
@@ -349,8 +350,11 @@ int processPost(char* str, char filterTerm[]) {
 	}
 	free(key);
 	free(value);
+	if (notANumber(post.id)) postValid = 0;
+	if (notANumber(post.user)) postValid = 0;
 	if (checkFilter(post, filterTerm) && postValid) savePost(post);
-	//printPost(post);
+	else printf("\e[1;91mPOST REJECTED\e[m\n");
+	printPost(post);
 	return 0;
 }
 
