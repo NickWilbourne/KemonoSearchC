@@ -7,9 +7,34 @@
 #include <malloc.h>
 #ifdef __linux__
 	#include <unistd.h>
+
+int enableANSI() {
+	return 0;
+}
+
 #elif _WIN32
 	#include <windows.h>
-	#define usleep(X) Sleep(X/1000) 
+	#define usleep(X) Sleep(X/1000)
+
+int enableANSI() {
+	HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+	if (hOut == INVALID_HANDLE_VALUE) {
+        fprintf(stderr, "Error: Unable to get console handle\n");
+        return 1;
+    }
+	DWORD dwMode = 0;
+	if (!GetConsoleMode(hOut, &dwMode)) {
+        fprintf(stderr, "Error: Unable to get console mode\n");
+        return 1;
+    }
+	dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+	if (!SetConsoleMode(hOut, dwMode)) {
+        fprintf(stderr, "Error: Unable to set console mode\n");
+        return 1;
+    }
+	return 0;
+}
+
 #endif
 
 #define USERID_LEN 10
@@ -502,6 +527,7 @@ void ouputJson(FILE* jsonFile) {
 }
 
 int main(int argc, char** args) {
+	if (enableANSI()) return 1;
 	int useExternalJsonFile = 0;
 	int bypassPostLimit = 0;
 	char externalJson[260];
