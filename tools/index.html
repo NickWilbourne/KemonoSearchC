@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<!--<html>
+	<head>
+
+		<link rel="stylesheet" href="index.css">
+
+	</head>
+	<body>
+
+		<input id=file type=file />
+		
+		<div id="output">
+
+
+		</div>
+
+	</body>
+
+	<script>
+		var str;
+		var currentID;
+
+	
+		document.getElementById('file').addEventListener('change', readFile, false);
+		function readFile(evt) {
+			var files = evt.target.files;
+			var file = files[0];
+			var reader = new FileReader();
+			reader.onload = function(event) {
+				console.log(event.target.result);
+				resultList = JSON.parse(event.target.result);
+				console.log("Parsed JSON.");
+				str = "";
+				document.getElementById('output').innerHTML = "";
+				resultList.sort((a,b) => b.entries.length - a.entries.length);
+				console.log("Sorted entries.");
+				resultList.forEach(printUser);
+			}
+			reader.readAsText(file)
+		}
+		function printUser(userObj) {
+			target = document.getElementById('output');
+			currentID = userObj.id;
+			target.innerHTML += "<details id=\"" + currentID + "\"><\\details>";
+			detailsTarget = document.getElementById(currentID);
+			detailsTarget.innerHTML = "<summary id=\"s" + currentID + "\"><\\summary>";
+			summaryTarget = document.getElementById("s" + currentID);
+			summaryTarget.innerHTML = userObj.name + "    [" + userObj.entries.length + "]";
+			console.log(`Print user ${currentID}.`);
+			userObj.entries.forEach(printEntry);
+		}
+		
+		function printEntry(entryObj) {
+			document.getElementById(currentID).innerHTML += "<a href=\"" + entryObj.link + "\">" + entryObj.title + "	<i>[" + entryObj.published + "]<br>";
+			console.log(`Printed entry for user ${currentID}.`);
+		}
+
+	</script>
+
+</html>-->
+<!DOCTYPE html>
+<html>
+<head>
+	<link rel="stylesheet" href="index.css">
+</head>
+<body>
+
+	<input id="file" type="file" />
+	<div id="output"></div>
+
+	<script>
+		let resultList = [];
+		let loadedIndex = 0;
+		const CHUNK_SIZE = 40; // Number of users to load at once
+
+		document.getElementById('file').addEventListener('change', readFile, false);
+
+		function readFile(evt) {
+			const file = evt.target.files[0];
+			const reader = new FileReader();
+			reader.onload = function(event) {
+				resultList = JSON.parse(event.target.result);
+				resultList.sort((a, b) => b.entries.length - a.entries.length);
+				document.getElementById('output').innerHTML = '';
+				loadedIndex = 0;
+				loadNextChunk();
+			};
+			reader.readAsText(file);
+		}
+
+		function loadNextChunk() {
+			const end = Math.min(loadedIndex + CHUNK_SIZE, resultList.length);
+			for (let i = loadedIndex; i < end; i++) {
+				printUser(resultList[i]);
+			}
+			loadedIndex = end;
+		}
+
+		function printUser(userObj) {
+			const target = document.getElementById('output');
+			const details = document.createElement('details');
+			details.id = userObj.id;
+
+			const summary = document.createElement('summary');
+			summary.id = "s" + userObj.id;
+			summary.textContent = `${userObj.name}    [${userObj.entries.length}]`;
+
+			details.appendChild(summary);
+
+			userObj.entries.forEach(entry => {
+				const link = document.createElement('a');
+				link.href = entry.link;
+				link.innerHTML = `${entry.title} <i>[${entry.published}]</i><br>`;
+				details.appendChild(link);
+			});
+
+			target.appendChild(details);
+		}
+
+		window.addEventListener('scroll', () => {
+			if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 200) {
+				// Near bottom
+				if (loadedIndex < resultList.length) {
+					loadNextChunk();
+				}
+			}
+		});
+	</script>
+
+</body>
+</html>
