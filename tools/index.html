@@ -1,72 +1,12 @@
 <!DOCTYPE html>
-<!--<html>
-	<head>
-
-		<link rel="stylesheet" href="index.css">
-
-	</head>
-	<body>
-
-		<input id=file type=file />
-		
-		<div id="output">
-
-
-		</div>
-
-	</body>
-
-	<script>
-		var str;
-		var currentID;
-
-	
-		document.getElementById('file').addEventListener('change', readFile, false);
-		function readFile(evt) {
-			var files = evt.target.files;
-			var file = files[0];
-			var reader = new FileReader();
-			reader.onload = function(event) {
-				console.log(event.target.result);
-				resultList = JSON.parse(event.target.result);
-				console.log("Parsed JSON.");
-				str = "";
-				document.getElementById('output').innerHTML = "";
-				resultList.sort((a,b) => b.entries.length - a.entries.length);
-				console.log("Sorted entries.");
-				resultList.forEach(printUser);
-			}
-			reader.readAsText(file)
-		}
-		function printUser(userObj) {
-			target = document.getElementById('output');
-			currentID = userObj.id;
-			target.innerHTML += "<details id=\"" + currentID + "\"><\\details>";
-			detailsTarget = document.getElementById(currentID);
-			detailsTarget.innerHTML = "<summary id=\"s" + currentID + "\"><\\summary>";
-			summaryTarget = document.getElementById("s" + currentID);
-			summaryTarget.innerHTML = userObj.name + "    [" + userObj.entries.length + "]";
-			console.log(`Print user ${currentID}.`);
-			userObj.entries.forEach(printEntry);
-		}
-		
-		function printEntry(entryObj) {
-			document.getElementById(currentID).innerHTML += "<a href=\"" + entryObj.link + "\">" + entryObj.title + "	<i>[" + entryObj.published + "]<br>";
-			console.log(`Printed entry for user ${currentID}.`);
-		}
-
-	</script>
-
-</html>-->
-<!DOCTYPE html>
 <html>
 <head>
 	<link rel="stylesheet" href="index.css">
 </head>
 <body>
-
-	<input id="file" type="file" />
-	<div id="output"></div>
+	<p style="margin:0px;padding:2px;border:1px solid black;margin-bottom:5px;display:inline;">To find reactions try <b><a style-"color:blue;" href="https://reabase.com">this site</a></b></p>
+	<br>
+	<input style="margin-top:10px;" id="file" type="file" />	<div id="output"></div>
 
 	<script>
 		let resultList = [];
