@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <bits/getopt_core.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -526,20 +527,25 @@ void ouputJson(FILE* jsonFile) {
 	fprintf(jsonFile, "]");
 }
 
-int main(int argc, char** args) {
+int main(int argc, char* argv[]) {
 	if (enableANSI()) return 1;
 	int useExternalJsonFile = 0;
 	int bypassPostLimit = 0;
 	char externalJson[260];
-	if (argc >= 2) {
-		useExternalJsonFile = 1;
-		snprintf(externalJson, 260, "%s", args[1]);
-		if (argc == 3) {
-			if (!strcmp(args[2], "-u")) {
+	int opt;
+
+	while ((opt = getopt(argc, argv, "uj:")) != -1) {
+		switch (opt) {
+			case 'u':
 				bypassPostLimit = 1;
-			}
+				break;
+			case 'j':
+				useExternalJsonFile = 1;
+				snprintf(externalJson, 260, "%s", optarg);
+				break;
 		}
 	}
+
 	static char urlbase[130] = "https://kemono.su/api/v1/posts?q=";
 	char searchTerm[40];
 	char filterTerm[40];
