@@ -530,11 +530,11 @@ void ouputJson(FILE* jsonFile) {
 int main(int argc, char* argv[]) {
 	if (enableANSI()) return 1;
 	int useExternalJsonFile = 0;
-	int bypassPostLimit = 0;
+	int bypassPostLimit = 0, pageDelay = 0;
 	char externalJson[260];
 	int opt;
 
-	while ((opt = getopt(argc, argv, "uj:")) != -1) {
+	while ((opt = getopt(argc, argv, "uj:d:")) != -1) {
 		switch (opt) {
 			case 'u':
 				bypassPostLimit = 1;
@@ -543,6 +543,8 @@ int main(int argc, char* argv[]) {
 				useExternalJsonFile = 1;
 				snprintf(externalJson, 260, "%s", optarg);
 				break;
+			case 'd':
+				pageDelay = atoi(optarg);
 		}
 	}
 
@@ -580,9 +582,11 @@ int main(int argc, char* argv[]) {
 		strcat(urlfull, countstring);
 		curl_easy_setopt(easy_handler, CURLOPT_URL, urlfull);
 		curl_easy_setopt(easy_handler, CURLOPT_VERBOSE, 0);
+		curl_easy_setopt(easy_handler, CURLOPT_SSL_SESSIONID_CACHE, 0);
 		pagefile = fopen("page.txt", "w+");
 		if (pagefile) {
 			curl_easy_setopt(easy_handler, CURLOPT_WRITEDATA, pagefile);
+			usleep(pageDelay*1000);
 			CURLcode res = curl_easy_perform(easy_handler);
 			if (res != CURLE_OK) {
 				fprintf(stderr, "CURL FAILED");
