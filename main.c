@@ -1,6 +1,9 @@
 #include <assert.h>
+#include <sys/stat.h>
+#include <libgen.h>
 #include <bits/getopt_core.h>
 #include <ctype.h>
+#include <linux/limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <curl/curl.h>
@@ -503,7 +506,7 @@ loopstart:
 	return 0;
 }
 
-void ouputJson(FILE* jsonFile) {
+void outputJson(FILE* jsonFile) {
 	fprintf(jsonFile, "[");
 	char lastUser[USERID_LEN];
 	int firstEntry = 0;
@@ -520,21 +523,68 @@ void ouputJson(FILE* jsonFile) {
 			firstEntry = 1;
 		}
 		if (!firstEntry) fprintf(jsonFile, ",");
-		fprintf(jsonFile, "{\"id\":\"%s\",\"published\":\"%s\",\"service\":\"%s\",\"title\":\"%s\",\"link\":\"https://kemono.su/%s/user/%s/post/%s\"}", 
+		fprintf(jsonFile,
+				"{\"id\":\"%s\",\"published\":\"%s\",\"service\":\"%s\",\"title\":\"%s\",\"link\":\"https://kemono.su/%s/user/%s/post/%s\"}", 
 				postList[i].id, postList[i].published, postList[i].service, postList[i].title, postList[i].service, postList[i].user, postList[i].id);
 	}
 	if (postListPos != 0) fprintf(jsonFile, "]}");
 	fprintf(jsonFile, "]");
 }
 
+int initSavesFolder(int useCustom, char customPath[]) {
+	char exe_path[PATH_MAX];
+	if (useCustom == 0) {
+		ssize_t len = readlink("/proc/self/exe", exe_path, sizeof(exe_path) - 1);
+		if (len == -1) {
+			perror("readlink");
+			return 1;
+		}
+		exe_path[len] = '\0';
+		dirname(exe_path);
+		char target_path[PATH_MAX];
+		snprintf(target_path, sizeof(target_path), "%s/saves", exe_path);
+		int mkdirResult = mkdir(target_path, 0777);
+	} else {
+		int mkdirResult = mkdir(customPath, 0777);
+	}
+	return 0;
+}
+
+int outputSave(int useCustomSavesFolder, char customSavesFolder[], char searchTerm[], char filterTerm[]) {
+	char target_path[PATH_MAX];
+	if (useCustomSavesFolder == 0) {
+		char exe_path[PATH_MAX];
+		ssize_t len = readlink("/proc/self/exe", exe_path, sizeof(exe_path) - 1);
+		if (len == -1) {
+			perror("readlink");
+			return 1;
+		}
+		exe_path[len] = '\0';
+		dirname(exe_path);
+		snprintf(target_path, sizeof(target_path), "%s/saves/%s - [%s].json", exe_path, searchTerm, filterTerm);
+	} else {
+		snprintf(target_path, sizeof(target_path), "%s/saves/%s - [%s].json", customSavesFolder, searchTerm, filterTerm);
+	}
+	FILE* jsonFile = fopen(target_path, "w");
+	if (!jsonFile) {
+		printf("Failed to open external json file.");
+		exit(1);
+	}
+	outputJson(jsonFile);
+	fclose(jsonFile);
+	return 0;
+}
+
+
 int main(int argc, char* argv[]) {
 	if (enableANSI()) return 1;
 	int useExternalJsonFile = 0;
-	int bypassPostLimit = 0, pageDelay = 0;
+	int bypassPostLimit = 0, pageDelay = 0, useCustomSavesFolder = 0;
 	char externalJson[260];
+	char customSavesFolder[PATH_MAX];
 	int opt;
 
-	while ((opt = getopt(argc, argv, "uj:d:")) != -1) {
+	while ((opt = getopt(argc, argv, "uj:d:f:")) != -1) {
 		switch (opt) {
 			case 'u':
 				bypassPostLimit = 1;
@@ -545,8 +595,15 @@ int main(int argc, char* argv[]) {
 				break;
 			case 'd':
 				pageDelay = atoi(optarg);
+				break;
+			case 'f':
+				useCustomSavesFolder = 1;
+				snprintf(customSavesFolder, sizeof(customSavesFolder), "%s", optarg);
+				break;
 		}
 	}
+
+	initSavesFolder(useCustomSavesFolder, customSavesFolder);
 
 	static char urlbase[130] = "https://kemono.su/api/v1/posts?q=";
 	char searchTerm[40];
@@ -655,10 +712,13 @@ int main(int argc, char* argv[]) {
 			printf("Failed to open external json file.");
 			exit(1);
 		}
-		ouputJson(jsonFile);
+		outputJson(jsonFile);
 		fclose(jsonFile);
 	} else {
-		ouputJson(stdout);
+		outputJson(stdout);
 	}
+
+	outputSave(useCustomSavesFolder, customSavesFolder, searchTerm, filterTerm);
+
 	return 0;
 }
