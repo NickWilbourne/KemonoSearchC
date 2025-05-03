@@ -575,16 +575,33 @@ int outputSave(int useCustomSavesFolder, char customSavesFolder[], char searchTe
 	return 0;
 }
 
+int checkSaveExistance(int useCustomSavesFolder, char customSavesFolder[], char searchTerm[], char filterTerm[]) {
+	char target_path[PATH_MAX];
+	if (useCustomSavesFolder == 0) {
+		char exe_path[PATH_MAX];
+		ssize_t len = readlink("/proc/self/exe", exe_path, sizeof(exe_path) - 1);
+		if (len == -1) {
+			perror("readlink");
+			return 1;
+		}
+		exe_path[len] = '\0';
+		dirname(exe_path);
+		snprintf(target_path, sizeof(target_path), "%s/saves/%s - [%s].json", exe_path, searchTerm, filterTerm);
+	} else {
+		snprintf(target_path, sizeof(target_path), "%s/saves/%s - [%s].json", customSavesFolder, searchTerm, filterTerm);
+	}
+	return (access(target_path, F_OK) == 0) ? 1 : 0;
+}
 
 int main(int argc, char* argv[]) {
 	if (enableANSI()) return 1;
 	int useExternalJsonFile = 0;
-	int bypassPostLimit = 0, pageDelay = 0, useCustomSavesFolder = 0;
+	int bypassPostLimit = 0, pageDelay = 0, useCustomSavesFolder = 0, skipSaveCheck = 0;
 	char externalJson[260];
 	char customSavesFolder[PATH_MAX];
 	int opt;
 
-	while ((opt = getopt(argc, argv, "uj:d:f:")) != -1) {
+	while ((opt = getopt(argc, argv, "uj:d:f:s")) != -1) {
 		switch (opt) {
 			case 'u':
 				bypassPostLimit = 1;
@@ -599,6 +616,9 @@ int main(int argc, char* argv[]) {
 			case 'f':
 				useCustomSavesFolder = 1;
 				snprintf(customSavesFolder, sizeof(customSavesFolder), "%s", optarg);
+				break;
+			case 's':
+				skipSaveCheck = 1;
 				break;
 		}
 	}
@@ -627,6 +647,12 @@ int main(int argc, char* argv[]) {
 	fgets(filterTerm, sizeof(filterTerm), stdin);
 	filterTerm[strcspn(filterTerm, "\n")] = 0;
 	stringEncode(searchTerm, strlen(searchTerm));
+
+	if((!skipSaveCheck) & checkSaveExistance(useCustomSavesFolder, customSavesFolder, searchTerm, filterTerm)) {
+		fprintf(stderr, "This search is already saved! Rerun program with -s option to skip this check.\n");
+		return 1;
+	}
+
 	strcat(urlbase, searchTerm);
 	printf("\nFull URL base: %s", urlbase);
 	
