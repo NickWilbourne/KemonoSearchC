@@ -337,14 +337,8 @@ void printAllPosts() {
 }
 
 int checkFilter(struct Post post, char filterTerm[]) {
-	for(int i = 0; post.title[i]; i++){
-		post.title[i] = tolower(post.title[i]);
-	}
-	for(int i = 0; filterTerm[i]; i++){
-		filterTerm[i] = tolower(filterTerm[i]);
-	}
 	printf("\nChecking [%s] against [%s];", filterTerm, post.title);
-	return ((strstr(post.title, filterTerm) != NULL) ? 1 : 0);
+	return ((strcasestr(post.title, filterTerm) != NULL) ? 1 : 0);
 }
 
 int processPost(char* str, char filterTerm[]) {
