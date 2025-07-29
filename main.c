@@ -375,7 +375,10 @@ int processPost(char* str, char filterTerm[]) {
 	free(value);
 	if (notANumber(post.id)) postValid = 0;
 	if (notANumber(post.user)) postValid = 0;
-	if (checkFilter(post, filterTerm) && postValid) savePost(post);
+	if (checkFilter(post, filterTerm) && postValid) {
+		savePost(post);
+		printf("\033[1;92mPOST ACCEPTED\033[m\n");
+	}
 	else printf("\033[1;91mPOST REJECTED\033[m\n");
 	printPost(post);
 	return 0;
@@ -619,7 +622,7 @@ int main(int argc, char* argv[]) {
 
 	initSavesFolder(useCustomSavesFolder, customSavesFolder);
 
-	static char urlbase[130] = "https://kemono.su/api/v1/posts?q=";
+	static char urlbase[130] = "https://kemono.cr/api/v1/posts?q=";
 	char searchTerm[40];
 	char filterTerm[40];
 	FILE* pagefile = NULL;
