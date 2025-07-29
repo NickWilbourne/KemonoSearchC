@@ -436,7 +436,7 @@ loopstart:
 			userFile = fopen("user.txt", "w+");
 			if (userFile) {
 				curl_easy_setopt(curl_handler, CURLOPT_WRITEDATA, userFile);
-				char userURLstart[64] = "https://kemono.su/api/v1/";
+				char userURLstart[64] = "https://kemono.cr/api/v1/";
 				static char userURLmid[] = "/user/";
 				static char userURLend[] = "/profile";
 				strcat(userURLstart, postList[i].service);
@@ -521,7 +521,7 @@ void outputJson(FILE* jsonFile) {
 		}
 		if (!firstEntry) fprintf(jsonFile, ",");
 		fprintf(jsonFile,
-				"{\"id\":\"%s\",\"published\":\"%s\",\"service\":\"%s\",\"title\":\"%s\",\"link\":\"https://kemono.su/%s/user/%s/post/%s\"}", 
+				"{\"id\":\"%s\",\"published\":\"%s\",\"service\":\"%s\",\"title\":\"%s\",\"link\":\"https://kemono.cr/%s/user/%s/post/%s\"}", 
 				postList[i].id, postList[i].published, postList[i].service, postList[i].title, postList[i].service, postList[i].user, postList[i].id);
 	}
 	if (postListPos != 0) fprintf(jsonFile, "]}");
