@@ -463,6 +463,9 @@ loopstart:
 				int pos = 0;
 				char* key = malloc(sizeof(char)*20);
 				char* value = malloc(sizeof(char)*70);
+				if (value == NULL) {
+					exit(1);
+				}
 				while (pos != -1) {
 					value[0] = '\0';
 					pos = getNextKeyValue(userPageBuffer, pos, &key, 20, &value, 70);
