@@ -426,6 +426,8 @@ size_t readUntil(char **buffer, size_t* bufferLen, char deliminator, FILE* input
 int findUsernames() {
 	FILE* userFile;
 	char lastName[25];	
+	struct curl_slist *list = NULL;
+	list = curl_slist_append(list, "Accept: text/css");
 	CURL* curl_handler = curl_easy_init();
 	int failed, failed_page, failed_count = 0;
 	for (int i = 0; i < postListPos; i++) {
@@ -446,7 +448,9 @@ loopstart:
 				printf("\nSetting user URL to: %s", userURLstart);
 				fflush(stdout);
 				curl_easy_setopt(curl_handler, CURLOPT_URL, userURLstart);
+				curl_easy_setopt(curl_handler, CURLOPT_HTTPHEADER, list);
 				curl_easy_setopt(curl_handler, CURLOPT_VERBOSE, 0);
+				curl_easy_setopt(curl_handler, CURLOPT_ACCEPT_ENCODING, "");
 				curl_easy_setopt(curl_handler, CURLOPT_SSL_SESSIONID_CACHE, 0);
 				CURLcode res = curl_easy_perform(curl_handler);
 				if (res != CURLE_OK) {
@@ -475,6 +479,13 @@ loopstart:
 					}
 					if (strcmp(key, "error") == 0 || pos == -1) {
 						fprintf(stderr, "\033[91mFailed to get name of user #%i. Error: %s Repeating...\033[m\n", i, (pos == -1 ? "" : value));
+						char c;
+						rewind(userFile);
+						fputc('[', stderr);
+						while ((c = fgetc(userFile)) != EOF) {
+        						fputc(c, stderr);
+    						}
+						fputc(']', stderr);
 						if (!strcmp(value, "Creator not found.")) {
 							printf("\033[92mCancel. Continue.\033[m");
 							break;
@@ -550,6 +561,15 @@ int initSavesFolder(int useCustom, char customPath[]) {
 	return 0;
 }
 
+int copyUserIds() {
+
+	for (int i = 0; i < postListPos; i++) {
+		strcpy(postList[i].userName, postList[i].user);
+	}
+	return 0;
+}
+
+
 int outputSave(int useCustomSavesFolder, char customSavesFolder[], char searchTerm[], char filterTerm[]) {
 	char target_path[PATH_MAX];
 	if (useCustomSavesFolder == 0) {
@@ -596,12 +616,12 @@ int checkSaveExistance(int useCustomSavesFolder, char customSavesFolder[], char 
 int main(int argc, char* argv[]) {
 	if (enableANSI()) return 1;
 	int useExternalJsonFile = 0;
-	int bypassPostLimit = 0, pageDelay = 0, useCustomSavesFolder = 0, skipSaveCheck = 0;
+	int bypassPostLimit = 0, pageDelay = 0, useCustomSavesFolder = 0, skipSaveCheck = 0, useUserIds = 0;
 	char externalJson[260];
 	char customSavesFolder[PATH_MAX];
 	int opt;
 
-	while ((opt = getopt(argc, argv, "uj:d:f:s")) != -1) {
+	while ((opt = getopt(argc, argv, "uj:d:f:si")) != -1) {
 		switch (opt) {
 			case 'u':
 				bypassPostLimit = 1;
@@ -619,6 +639,9 @@ int main(int argc, char* argv[]) {
 				break;
 			case 's':
 				skipSaveCheck = 1;
+				break;
+			case 'i':
+				useUserIds = 1;
 				break;
 		}
 	}
@@ -728,7 +751,8 @@ int main(int argc, char* argv[]) {
 	printf("Sorting %i posts.", postListPos);
 	qsort(postList, postListPos, sizeof(struct Post), comparePosts);
 	
-	findUsernames();
+	if (useUserIds == 1) copyUserIds();
+	else findUsernames();
 
 	printAllPosts();
 	FILE* jsonFile;
