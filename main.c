@@ -213,6 +213,59 @@ int getNextKeyValue(
 }
 
 
+int verifyJsonCompleteness(FILE* pagefile) {
+	enum JsonState {NORMAL, STRING, ESCAPED} state = NORMAL;
+	int depthCurly = 0;
+	int depthSquare = 0;
+	rewind(pagefile);
+	char ch;
+	while ((ch = getc(pagefile)) != EOF) {
+		switch (state) {
+		case NORMAL:
+			switch (ch) {
+				case '{':
+					depthCurly++;
+					break;
+				case '}':
+					depthCurly--;
+					break;
+				case '[':
+					depthSquare++;
+					break;
+				case ']':
+					depthSquare--;
+					break;
+				case '"':
+					state = STRING;
+					break;
+			}
+			break;
+		case STRING:
+			switch (ch) {
+				case '"':
+					state = NORMAL;
+					break;
+				case '\\':
+					state = ESCAPED;
+			}
+			break;
+		case ESCAPED:
+			state = STRING;
+			break;
+		}
+	}
+	rewind(pagefile);
+	if (depthCurly != 0) {
+		fprintf(stderr, "\033[91mError in page.txt file. Depth error '{}'.\033[0m\n");
+	}
+	if (depthSquare != 0) {
+		fprintf(stderr, "\033[91mError in page.txt file. Depth error '[]'.\033[0m\n");
+	}
+	if (depthCurly != 0 || depthSquare != 0) return 1;
+
+	return 0;
+}
+
 int stringEncode(char* str, int strLen) {
 	int i;
 	for (i=0; i < strLen; i++) if (str[i] == ' ') str[i] = '+';
@@ -702,6 +755,12 @@ int main(int argc, char* argv[]) {
 			exit(-1);
 		}
 		rewind(pagefile);
+		int jsonCompletenes = 0;
+		if (verifyJsonCompleteness(pagefile) != 0) {
+			printf("repeating page because of JSON error.");
+			jsonCompletenes = 1;
+			goto pageRepeat;
+		}
 		if (postVar == 0) {
 			int count = getCount(pagefile);
 			if (count == -1) {
@@ -728,9 +787,10 @@ int main(int argc, char* argv[]) {
 			free(postStr);
 		}
 
-		if (postReturn != 1) postVar += 50;
+pageRepeat:
+		if (postReturn != 1 || jsonCompletenes == 1) postVar += 50;
 		else{
-			printf("repeating page because of DDoS protection.");
+			if (jsonCompletenes == 0)printf("repeating page because of DDoS protection.");
 			char ch;
 			rewind(pagefile);
 			while ((ch = fgetc(pagefile)) != EOF) {
