@@ -1,6 +1,8 @@
 
 # KemonoSearchC
 
+![Static Badge](https://img.shields.io/badge/Platform-Linux-green)
+
 A terminal based utility for retrieving posts from the Kemono website,
 allowing for filtering for specific strings in the post title.
 
@@ -28,7 +30,7 @@ cmake --build build
 
 ## Flags
 
-- -d \<int> => Custom delay between page calls
+- -d \<int> => Custom delay between page calls in milliseconds
 - -f \<path> => Custom saves folder
 - -i => Use user IDs instead of usernames. Useful if the user API is down, but reduces readability.
 - -j \<path> => Custom output json path
