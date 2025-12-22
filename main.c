@@ -504,7 +504,8 @@ loopstart:
 				curl_easy_setopt(curl_handler, CURLOPT_HTTPHEADER, list);
 				curl_easy_setopt(curl_handler, CURLOPT_VERBOSE, 0);
 				curl_easy_setopt(curl_handler, CURLOPT_ACCEPT_ENCODING, "");
-				curl_easy_setopt(curl_handler, CURLOPT_SSL_SESSIONID_CACHE, 0);
+				curl_easy_setopt(curl_handler, CURLOPT_COOKIEFILE, "cookies.txt");
+				curl_easy_setopt(curl_handler, CURLOPT_COOKIEJAR, "cookies.txt");
 				CURLcode res = curl_easy_perform(curl_handler);
 				if (res != CURLE_OK) {
 					fprintf(stderr, "\033[1;91mCURL FAILED due to: %s\033[m", curl_easy_strerror(res));
@@ -666,15 +667,44 @@ int checkSaveExistance(int useCustomSavesFolder, char customSavesFolder[], char 
 	return (access(target_path, F_OK) == 0) ? 1 : 0;
 }
 
+int authenticateAPI(char username[], char password[]) {
+	CURL *curl = curl_easy_init();
+	if (!curl) return 1;
+
+	char json[256];
+	snprintf(json, sizeof(json), "{\"username\": \"%s\",\"password\": \"%s\"}",
+			username, password);
+
+	struct curl_slist *headers = NULL;
+	headers = curl_slist_append(headers, "Content-Type: application/json");
+
+	curl_easy_setopt(curl, CURLOPT_URL, "https://kemono.cr/api/v1/authentication/login");
+	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+	curl_easy_setopt(curl, CURLOPT_POST, 1L);
+	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json);
+	curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (long)strlen(json));
+	curl_easy_setopt(curl, CURLOPT_COOKIEFILE, "cookies.txt");
+	curl_easy_setopt(curl, CURLOPT_COOKIEJAR, "cookies.txt");
+
+
+	CURLcode res = curl_easy_perform(curl);
+
+	curl_slist_free_all(headers);
+	curl_easy_cleanup(curl);
+	return (res == CURLE_OK) ? 0 : 1;
+}
+
 int main(int argc, char* argv[]) {
 	if (enableANSI()) return 1;
 	int useExternalJsonFile = 0;
-	int bypassPostLimit = 0, pageDelay = 0, useCustomSavesFolder = 0, skipSaveCheck = 0, useUserIds = 0;
+	int bypassPostLimit = 0, pageDelay = 0, useCustomSavesFolder = 0, skipSaveCheck = 0, useUserIds = 0, authenticate = 0, hasPassword = 0;
 	char externalJson[260];
+	char authUsername[48];
+	char authPassword[48];
 	char customSavesFolder[PATH_MAX];
 	int opt;
 
-	while ((opt = getopt(argc, argv, "uj:d:f:si")) != -1) {
+	while ((opt = getopt(argc, argv, "uj:d:f:siU:P:")) != -1) {
 		switch (opt) {
 			case 'u':
 				bypassPostLimit = 1;
@@ -696,7 +726,20 @@ int main(int argc, char* argv[]) {
 			case 'i':
 				useUserIds = 1;
 				break;
+			case 'U':
+				authenticate = 1;
+				snprintf(authUsername, 48, "%s", optarg);
+				break;
+			case 'P':
+				hasPassword = 1;
+				snprintf(authPassword, 48, "%s", optarg);
+				break;
 		}
+	}
+
+	if (authenticate != hasPassword) {
+		fprintf(stderr, "Both username and password must be provided!\n");
+		return 1;
 	}
 
 	initSavesFolder(useCustomSavesFolder, customSavesFolder);
@@ -732,7 +775,9 @@ int main(int argc, char* argv[]) {
 	strcat(urlbase, searchTerm);
 	printf("\nFull URL base: %s", urlbase);
 	
-	CURL* easy_handler = curl_easy_init();
+	authenticateAPI(authUsername, authPassword);
+
+	CURL* easy_handler = curl_easy_init(); // Main curl init
 	while (postVar < maxPost) {
 		char urlfull[140];
 		char countstring[10];
@@ -741,7 +786,8 @@ int main(int argc, char* argv[]) {
 		strcat(urlfull, countstring);
 		curl_easy_setopt(easy_handler, CURLOPT_URL, urlfull);
 		curl_easy_setopt(easy_handler, CURLOPT_VERBOSE, 0);
-		curl_easy_setopt(easy_handler, CURLOPT_SSL_SESSIONID_CACHE, 0);
+		curl_easy_setopt(easy_handler, CURLOPT_COOKIEFILE, "cookies.txt");
+		curl_easy_setopt(easy_handler, CURLOPT_COOKIEJAR, "cookies.txt");
 		pagefile = fopen("page.txt", "w+");
 		if (pagefile) {
 			curl_easy_setopt(easy_handler, CURLOPT_WRITEDATA, pagefile);
@@ -796,8 +842,6 @@ pageRepeat:
 			while ((ch = fgetc(pagefile)) != EOF) {
 				putchar(ch);
 			}
-			curl_easy_cleanup(easy_handler);
-			easy_handler = curl_easy_init();
 			usleep(3000000);
 		}
 		printProgress(postVar, maxPost);
