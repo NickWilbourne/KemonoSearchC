@@ -376,7 +376,8 @@ int savePost(struct Post post) {
 
 void printPost(struct Post post) {
 	if (notANumber(post.user)) printf("\033[91m");
-	printf("\nID: %s, USER: %s, NAME: %s, SERVICE: %s, DATE: %s, TITLE: %s\033[m", post.id, post.user, post.userName, post.service, post.published, post.title);
+	printf("\nID: %s, USER: %s, NAME: %s, SERVICE: %s, DATE: %s, TITLE: %s\033[m", 
+			post.id, post.user, post.userName, post.service, post.published, post.title);
 	fflush(stdout);
 }
 
@@ -531,7 +532,8 @@ loopstart:
 						break;
 					}
 					if (strcmp(key, "error") == 0 || pos == -1) {
-						fprintf(stderr, "\033[91mFailed to get name of user #%i. Error: %s Repeating...\033[m\n", i, (pos == -1 ? "" : value));
+						fprintf(stderr, "\033[91mFailed to get name of user #%i. Error: %s Repeating...\033[m\n", 
+								i, (pos == -1 ? "" : value));
 						char c;
 						rewind(userFile);
 						fputc('[', stderr);
@@ -588,8 +590,10 @@ void outputJson(FILE* jsonFile) {
 		}
 		if (!firstEntry) fprintf(jsonFile, ",");
 		fprintf(jsonFile,
-				"{\"id\":\"%s\",\"published\":\"%s\",\"service\":\"%s\",\"title\":\"%s\",\"link\":\"https://kemono.cr/%s/user/%s/post/%s\"}", 
-				postList[i].id, postList[i].published, postList[i].service, postList[i].title, postList[i].service, postList[i].user, postList[i].id);
+				"{\"id\":\"%s\",\"published\":\"%s\",\"service\":\"%s\","
+				"\"title\":\"%s\",\"link\":\"https://kemono.cr/%s/user/%s/post/%s\"}", 
+				postList[i].id, postList[i].published, postList[i].service, 
+				postList[i].title, postList[i].service, postList[i].user, postList[i].id);
 	}
 	if (postListPos != 0) fprintf(jsonFile, "]}");
 	fprintf(jsonFile, "]");
