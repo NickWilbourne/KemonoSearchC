@@ -1,14 +1,14 @@
 #include <assert.h>
-#include <sys/stat.h>
-#include <libgen.h>
 #include <bits/getopt_core.h>
 #include <ctype.h>
+#include <curl/curl.h>
+#include <libgen.h>
 #include <linux/limits.h>
+#include <malloc.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <curl/curl.h>
 #include <string.h>
-#include <malloc.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #define USERID_LEN 10
@@ -22,143 +22,132 @@ struct Post {
 	char published[20];
 };
 
-struct Post* postList;
+struct Post *postList;
 int postListSize = 0;
 int postListPos = 0;
 
-int notANumber(char* str) {
+int notANumber(char *str) {
 	int i = 0;
 	int isBlank = 1;
 	while (str[i] != '\0') {
 		isBlank = 0;
-		if (str[i] < 0x30 || str[i] > 0x39) return 1;
+		if (str[i] < 0x30 || str[i] > 0x39)
+			return 1;
 		i++;
 	}
 	return isBlank;
 }
 
-int getNextKeyValue(
-		char* str, int start, 
-		char** keyOut, int keySize, 
-		char** valueOut, int valueSize) {
+int getNextKeyValue(char *str, int start, char **keyOut, int keySize, char **valueOut, int valueSize) {
 	assert(valueSize > 6);
 	int strLen = strlen(str);
-	//printf("Parsing {%s} from index %i.", str, start);
+	// printf("Parsing {%s} from index %i.", str, start);
 	int keyPos = 0, valuePos = 0;
-	enum {
-		REGULAR,
-		ESCAPED
-	} charState;
-	enum {
-		SEEK,
-		KEY,
-		SEPARATOR,
-		VALUE,
-		ENDOFVALUE,
-		SEEKEND
-	} state;
+	enum { REGULAR, ESCAPED } charState;
+	enum { SEEK, KEY, SEPARATOR, VALUE, ENDOFVALUE, SEEKEND } state;
 	state = SEEK;
 	charState = REGULAR;
 	int i;
-	for (i = 0; i < strLen-start && state != ENDOFVALUE; i++) {
+	for (i = 0; i < strLen - start && state != ENDOFVALUE; i++) {
 		switch (state) {
 		case SEEK:
-			if (str[start+i] == '"') state = KEY;
+			if (str[start + i] == '"')
+				state = KEY;
 			break;
 		case KEY:
 			switch (charState) {
-				case REGULAR:
-					if (str[start+i] == '"') {
-						state = SEPARATOR;
-					}	
-					else if (str[start+i] == '\\') charState = ESCAPED;
-					else {
-						if (keyPos < keySize - 1) {
-							(*keyOut)[keyPos] = str[start+i];
-							keyPos++;
-						}
-						else {
-							fprintf(stderr,"\033[91mKey length exceeded!\033[m");
-							return -1;
-						}
-					}
-					break;
-				case ESCAPED:
+			case REGULAR:
+				if (str[start + i] == '"') {
+					state = SEPARATOR;
+				} else if (str[start + i] == '\\')
+					charState = ESCAPED;
+				else {
 					if (keyPos < keySize - 1) {
-						(*keyOut)[keyPos] = str[start+i];
+						(*keyOut)[keyPos] = str[start + i];
 						keyPos++;
-					}
-					else {
+					} else {
 						fprintf(stderr, "\033[91mKey length exceeded!\033[m");
 						return -1;
 					}
-					charState = REGULAR;
-					break;
+				}
+				break;
+			case ESCAPED:
+				if (keyPos < keySize - 1) {
+					(*keyOut)[keyPos] = str[start + i];
+					keyPos++;
+				} else {
+					fprintf(stderr, "\033[91mKey length exceeded!\033[m");
+					return -1;
+				}
+				charState = REGULAR;
+				break;
 			}
 			break;
 		case SEPARATOR:
-			if (str[start+i] == '"') {
-				//printf("[EOS]");
+			if (str[start + i] == '"') {
+				// printf("[EOS]");
 				state = VALUE;
-				//printf("Ending key at index %i", keyPos);
-				//fflush(stdout);
+				// printf("Ending key at index %i", keyPos);
+				// fflush(stdout);
 				(*keyOut)[keyPos] = '\0';
-			}
-			else if (str[start+i] != ':' && str[start+i] != ' ') {
-				//printf("\nUnknown Symbols found in seperator at index %i!\n", start+i);
+			} else if (str[start + i] != ':' && str[start + i] != ' ') {
+				// printf("\nUnknown Symbols found in seperator at index %i!\n", start+i);
 				(*valueOut)[0] = '\0';
 				(*keyOut)[0] = '\0';
-				//fflush(stdout);
+				// fflush(stdout);
 				return -1;
 			}
-			//putchar('S');
-			//fflush(stdout);
+			// putchar('S');
+			// fflush(stdout);
 			break;
 		case VALUE:
-			//putchar('V');
-			//fflush(stdout);
+			// putchar('V');
+			// fflush(stdout);
 			switch (charState) {
-				case REGULAR:
-					if (str[start+i] == '"') state = ENDOFVALUE;
-					else {
-						if (str[start+i] == '\\') charState = ESCAPED;
-						if (valuePos < valueSize - 1) {
-							(*valueOut)[valuePos] = str[start+i];
-							valuePos++;
-						}
-						else {
-							(*valueOut)[valueSize-2] = '.';
-							(*valueOut)[valueSize-3] = '.';
-							(*valueOut)[valueSize-4] = '.';
-							if ((*valueOut)[valueSize-5] == '\\' && (*valueOut)[valueSize-6] != '\\')
-								(*valueOut)[valueSize-5] = '.';
-							state = SEEKEND;
-						}
-					}
-					break;
-				case ESCAPED:
+			case REGULAR:
+				if (str[start + i] == '"')
+					state = ENDOFVALUE;
+				else {
+					if (str[start + i] == '\\')
+						charState = ESCAPED;
 					if (valuePos < valueSize - 1) {
-						(*valueOut)[valuePos] = str[start+i];
+						(*valueOut)[valuePos] = str[start + i];
 						valuePos++;
-					}
-					else {
-						(*valueOut)[valueSize-2] = '.';
-						(*valueOut)[valueSize-3] = '.';
-						(*valueOut)[valueSize-4] = '.';
+					} else {
+						(*valueOut)[valueSize - 2] = '.';
+						(*valueOut)[valueSize - 3] = '.';
+						(*valueOut)[valueSize - 4] = '.';
+						if ((*valueOut)[valueSize - 5] == '\\' &&
+						    (*valueOut)[valueSize - 6] != '\\')
+							(*valueOut)[valueSize - 5] = '.';
 						state = SEEKEND;
 					}
-					charState = REGULAR;
-					break;
+				}
+				break;
+			case ESCAPED:
+				if (valuePos < valueSize - 1) {
+					(*valueOut)[valuePos] = str[start + i];
+					valuePos++;
+				} else {
+					(*valueOut)[valueSize - 2] = '.';
+					(*valueOut)[valueSize - 3] = '.';
+					(*valueOut)[valueSize - 4] = '.';
+					state = SEEKEND;
+				}
+				charState = REGULAR;
+				break;
 			}
 			break;
 		case SEEKEND:
 			switch (charState) {
-				case REGULAR:
-					if (str[start+i] == '"') state = ENDOFVALUE;
-					if (str[start+i] == '\\') charState = ESCAPED;
-					break;
-				case ESCAPED:
-					break;
+			case REGULAR:
+				if (str[start + i] == '"')
+					state = ENDOFVALUE;
+				if (str[start + i] == '\\')
+					charState = ESCAPED;
+				break;
+			case ESCAPED:
+				break;
 			}
 			break;
 		default:
@@ -166,12 +155,12 @@ int getNextKeyValue(
 			exit(1);
 		}
 	}
-	
+
 	if (state != ENDOFVALUE && state != VALUE && state != SEEKEND) {
-		//printf("Invalid state(%i) on loop exit", state);
+		// printf("Invalid state(%i) on loop exit", state);
 		return -1;
 	}
-	
+
 	if (keyPos >= keySize || valuePos >= valueSize) {
 		fprintf(stderr, "\033[1;91mUncaught buffer overload in keyValuePairParsing.\033[m\n");
 		exit(1);
@@ -179,12 +168,11 @@ int getNextKeyValue(
 
 	(*keyOut)[keyPos] = '\0';
 	(*valueOut)[valuePos] = '\0';
-	return start+i;
+	return start + i;
 }
 
-
-int verifyJsonCompleteness(FILE* pagefile) {
-	enum JsonState {NORMAL, STRING, ESCAPED} state = NORMAL;
+int verifyJsonCompleteness(FILE *pagefile) {
+	enum JsonState { NORMAL, STRING, ESCAPED } state = NORMAL;
 	int depthCurly = 0;
 	int depthSquare = 0;
 	rewind(pagefile);
@@ -193,30 +181,30 @@ int verifyJsonCompleteness(FILE* pagefile) {
 		switch (state) {
 		case NORMAL:
 			switch (ch) {
-				case '{':
-					depthCurly++;
-					break;
-				case '}':
-					depthCurly--;
-					break;
-				case '[':
-					depthSquare++;
-					break;
-				case ']':
-					depthSquare--;
-					break;
-				case '"':
-					state = STRING;
-					break;
+			case '{':
+				depthCurly++;
+				break;
+			case '}':
+				depthCurly--;
+				break;
+			case '[':
+				depthSquare++;
+				break;
+			case ']':
+				depthSquare--;
+				break;
+			case '"':
+				state = STRING;
+				break;
 			}
 			break;
 		case STRING:
 			switch (ch) {
-				case '"':
-					state = NORMAL;
-					break;
-				case '\\':
-					state = ESCAPED;
+			case '"':
+				state = NORMAL;
+				break;
+			case '\\':
+				state = ESCAPED;
 			}
 			break;
 		case ESCAPED:
@@ -231,18 +219,21 @@ int verifyJsonCompleteness(FILE* pagefile) {
 	if (depthSquare != 0) {
 		fprintf(stderr, "\033[91mError in page.txt file. Depth error '[]'.\033[0m\n");
 	}
-	if (depthCurly != 0 || depthSquare != 0) return 1;
+	if (depthCurly != 0 || depthSquare != 0)
+		return 1;
 
 	return 0;
 }
 
-int stringEncode(char* str, int strLen) {
+int stringEncode(char *str, int strLen) {
 	int i;
-	for (i=0; i < strLen; i++) if (str[i] == ' ') str[i] = '+';
+	for (i = 0; i < strLen; i++)
+		if (str[i] == ' ')
+			str[i] = '+';
 	return 0;
 }
 
-int getCount(FILE* pageFile) {
+int getCount(FILE *pageFile) {
 	int count = -1;
 	fscanf(pageFile, "{\"count\":%d", &count);
 	return count;
@@ -256,27 +247,27 @@ int printProgress(int prog, int total) {
 	char bar[51];
 	int points, i;
 	points = prog * 50 / total;
-	if (points > 50) points = 50;
-	for (i = 0; i < points; i++) bar[i] = '#';
-	for (;i<50;i++) bar[i] = '-';
+	if (points > 50)
+		points = 50;
+	for (i = 0; i < points; i++)
+		bar[i] = '#';
+	for (; i < 50; i++)
+		bar[i] = '-';
 	bar[50] = '\0';
 	printf("\n%s\033[107;30m[%i/%i]\033[m", bar, prog, total);
 	return 0;
 }
 
-int getPost(FILE* pagefile, char** outStr) {
+int getPost(FILE *pagefile, char **outStr) {
 	int depth = 0;
 	int postSize = 10;
 	int pos = 0;
-	enum {
-		NO,
-		YES
-	} inComment, escaped;
+	enum { NO, YES } inComment, escaped;
 	inComment = NO;
 	escaped = NO;
 	char c;
-	char* post = malloc(sizeof(char)*10);
-	while((c = getc(pagefile))) {
+	char *post = malloc(sizeof(char) * 10);
+	while ((c = getc(pagefile))) {
 		if (c == -1) {
 			*outStr = post;
 			fprintf(stderr, "\033[1;91mError while seeking.\033[m");
@@ -291,26 +282,32 @@ int getPost(FILE* pagefile, char** outStr) {
 			break;
 		}
 	}
-	while((c = getc(pagefile))) {
+	while ((c = getc(pagefile))) {
 		if (c == '"' && escaped == NO) {
-			if (inComment == NO) inComment = YES;
-			else inComment = NO;
+			if (inComment == NO)
+				inComment = YES;
+			else
+				inComment = NO;
 		}
-		if (c == '\\' && escaped == NO) escaped = YES;
-		else escaped = NO;
+		if (c == '\\' && escaped == NO)
+			escaped = YES;
+		else
+			escaped = NO;
 		if (c == -1) {
 			*outStr = post;
 			fprintf(stderr, "\033[1;91mError while parsing.\033[m");
 			return 1;
 		}
-		if (c == '{' && inComment == NO) depth++;
+		if (c == '{' && inComment == NO)
+			depth++;
 		if (c == '}' && inComment == NO) {
 			depth--;
-			if (depth == 0) goto endofpost;
+			if (depth == 0)
+				goto endofpost;
 		}
 		// Add char to string
 		if (pos == postSize - 1) {
-			post = realloc(post, postSize*2);
+			post = realloc(post, postSize * 2);
 			if (post == NULL) {
 				fprintf(stderr, "\033[1;91mReallocation in getPost failed!\033[m");
 				exit(-1);
@@ -325,13 +322,13 @@ int getPost(FILE* pagefile, char** outStr) {
 endofpost:
 	post[pos] = '\0';
 	*outStr = post;
-	//printf("%s\n", post);
+	// printf("%s\n", post);
 	return 0;
 }
 
 int savePost(struct Post post) {
 	if (postListPos >= postListSize) {
-		postList = realloc(postList, sizeof(struct Post)*(postListSize+50));
+		postList = realloc(postList, sizeof(struct Post) * (postListSize + 50));
 		if (postList == NULL) {
 			fprintf(stderr, "\033[1;91mFailed to allocate more space for postList!\033[m");
 			exit(1);
@@ -345,17 +342,19 @@ int savePost(struct Post post) {
 }
 
 void printPost(struct Post post) {
-	if (notANumber(post.user)) printf("\033[91m");
-	printf("\nID: %s, USER: %s, NAME: %s, SERVICE: %s, DATE: %s, TITLE: %s\033[m", 
-			post.id, post.user, post.userName, post.service, post.published, post.title);
+	if (notANumber(post.user))
+		printf("\033[91m");
+	printf("\nID: %s, USER: %s, NAME: %s, SERVICE: %s, DATE: %s, TITLE: %s\033[m", post.id, post.user,
+	       post.userName, post.service, post.published, post.title);
 	fflush(stdout);
 }
 
 void printAllPosts() {
 	printf("Printing %i posts:\n", postListPos);
-	
+
 	for (int i = 0; i < postListPos; i++) {
-		if (i > 0 && strcmp(postList[i].user, postList[i-1].user) != 0) putchar('\n');
+		if (i > 0 && strcmp(postList[i].user, postList[i - 1].user) != 0)
+			putchar('\n');
 		printPost(postList[i]);
 	}
 }
@@ -365,7 +364,7 @@ int checkFilter(struct Post post, char filterTerm[]) {
 	return ((strcasestr(post.title, filterTerm) != NULL) ? 1 : 0);
 }
 
-int processPost(char* str, char filterTerm[]) {
+int processPost(char *str, char filterTerm[]) {
 	int postValid = 1;
 	struct Post post;
 	post.id[0] = '\0';
@@ -375,67 +374,74 @@ int processPost(char* str, char filterTerm[]) {
 	post.userName[0] = '\0';
 	post.published[0] = '\0';
 	int pos = 0;
-	char* key = malloc(sizeof(char)*20);
-	char* value = malloc(sizeof(char)*70);
+	char *key = malloc(sizeof(char) * 20);
+	char *value = malloc(sizeof(char) * 70);
 	if (key == NULL || value == NULL) {
 		fprintf(stderr, "Key or Value allocation failed!");
 		exit(1);
 	}
 	while (pos != -1) {
 		pos = getNextKeyValue(str, pos, &key, 20, &value, 70);
-		if (pos == -1) break;
-		//printf("[\"%s\":\"%s\";\"%i\"]", key, value, pos);
+		if (pos == -1)
+			break;
+		// printf("[\"%s\":\"%s\";\"%i\"]", key, value, pos);
 		if (strcmp(key, "id") == 0) {
 			snprintf(post.id, 10, "%s", value);
 		}
 		if (strcmp(key, "user") == 0) {
 			snprintf(post.user, USERID_LEN, "%s", value);
 		}
-		if (strcmp(key, "service") == 0) snprintf(post.service, 15, "%s", value);
-		if (strcmp(key, "title") == 0) snprintf(post.title, 70, "%s", value);
-		if (strcmp(key, "published") == 0) snprintf(post.published, 20, "%s", value);
+		if (strcmp(key, "service") == 0)
+			snprintf(post.service, 15, "%s", value);
+		if (strcmp(key, "title") == 0)
+			snprintf(post.title, 70, "%s", value);
+		if (strcmp(key, "published") == 0)
+			snprintf(post.published, 20, "%s", value);
 	}
 	free(key);
 	free(value);
-	if (notANumber(post.id)) postValid = 0;
-	if (notANumber(post.user)) postValid = 0;
+	if (notANumber(post.id))
+		postValid = 0;
+	if (notANumber(post.user))
+		postValid = 0;
 	if (checkFilter(post, filterTerm) && postValid) {
 		savePost(post);
 		printf("\033[1;92mPOST ACCEPTED\033[m\n");
-	}
-	else printf("\033[1;91mPOST REJECTED\033[m\n");
+	} else
+		printf("\033[1;91mPOST REJECTED\033[m\n");
 	printPost(post);
 	return 0;
 }
 
-int comparePosts(const void* pv1, const void* pv2) {
-	struct Post *p1 = (struct Post*)pv1;
-	struct Post *p2 = (struct Post*)pv2;
+int comparePosts(const void *pv1, const void *pv2) {
+	struct Post *p1 = (struct Post *)pv1;
+	struct Post *p2 = (struct Post *)pv2;
 	int r;
 	if ((r = strcmp(p1->user, p2->user))) {
 		return r;
 	} else {
-		return 0-strcmp(p1->published, p2->published);
-	}	
+		return 0 - strcmp(p1->published, p2->published);
+	}
 }
 
-size_t readUntil(char **buffer, size_t* bufferLen, char deliminator, FILE* inputFile) {
+size_t readUntil(char **buffer, size_t *bufferLen, char deliminator, FILE *inputFile) {
 	char ch;
 	char *outStr;
 	*bufferLen = 0;
 	outStr = malloc(0);
 	while ((ch = getc(inputFile))) {
-		if (ch == deliminator || ch == -1) break;
-		void* tmpPtr = realloc(outStr, sizeof(char)*(++(*bufferLen)));
+		if (ch == deliminator || ch == -1)
+			break;
+		void *tmpPtr = realloc(outStr, sizeof(char) * (++(*bufferLen)));
 		if (tmpPtr == NULL) {
 			free(outStr);
 			return -1;
 		} else {
 			outStr = tmpPtr;
 		}
-		outStr[(*bufferLen)-1] = ch;
+		outStr[(*bufferLen) - 1] = ch;
 	}
-	void* tmpPtr = realloc(outStr, sizeof(char)*((*bufferLen)+1));
+	void *tmpPtr = realloc(outStr, sizeof(char) * ((*bufferLen) + 1));
 	if (tmpPtr == NULL) {
 		free(outStr);
 		return -1;
@@ -448,17 +454,17 @@ size_t readUntil(char **buffer, size_t* bufferLen, char deliminator, FILE* input
 }
 
 int findUsernames() {
-	FILE* userFile;
-	char lastName[25];	
+	FILE *userFile;
+	char lastName[25];
 	struct curl_slist *list = NULL;
 	list = curl_slist_append(list, "Accept: text/css");
-	CURL* curl_handler = curl_easy_init();
+	CURL *curl_handler = curl_easy_init();
 	int failed, failed_page, failed_count = 0;
 	for (int i = 0; i < postListPos; i++) {
-loopstart:
+	loopstart:
 		failed = 0;
 		failed_page = 0;
-		if (i == 0 || strcmp(postList[i].user, postList[i-1].user) != 0) {
+		if (i == 0 || strcmp(postList[i].user, postList[i - 1].user) != 0) {
 			userFile = fopen("user.txt", "w+");
 			if (userFile) {
 				curl_easy_setopt(curl_handler, CURLOPT_WRITEDATA, userFile);
@@ -478,10 +484,11 @@ loopstart:
 				curl_easy_setopt(curl_handler, CURLOPT_SSL_SESSIONID_CACHE, 0);
 				CURLcode res = curl_easy_perform(curl_handler);
 				if (res != CURLE_OK) {
-					fprintf(stderr, "\033[1;91mCURL FAILED due to: %s\033[m", curl_easy_strerror(res));
+					fprintf(stderr, "\033[1;91mCURL FAILED due to: %s\033[m",
+						curl_easy_strerror(res));
 				}
 				rewind(userFile);
-				char* userPageBuffer = NULL;
+				char *userPageBuffer = NULL;
 				size_t userPageLen;
 				size_t bytes_read = readUntil(&userPageBuffer, &userPageLen, '\0', userFile);
 				if (bytes_read == -1) {
@@ -489,8 +496,8 @@ loopstart:
 					exit(1);
 				}
 				int pos = 0;
-				char* key = malloc(sizeof(char)*20);
-				char* value = malloc(sizeof(char)*70);
+				char *key = malloc(sizeof(char) * 20);
+				char *value = malloc(sizeof(char) * 70);
 				if (value == NULL) {
 					exit(1);
 				}
@@ -502,21 +509,23 @@ loopstart:
 						break;
 					}
 					if (strcmp(key, "error") == 0 || pos == -1) {
-						fprintf(stderr, "\033[91mFailed to get name of user #%i. Error: %s Repeating...\033[m\n", 
-								i, (pos == -1 ? "" : value));
+						fprintf(stderr,
+							"\033[91mFailed to get name of user #%i. Error: %s "
+							"Repeating...\033[m\n",
+							i, (pos == -1 ? "" : value));
 						char c;
 						rewind(userFile);
 						fputc('[', stderr);
 						while ((c = fgetc(userFile)) != EOF) {
-        						fputc(c, stderr);
-    						}
+							fputc(c, stderr);
+						}
 						fputc(']', stderr);
 						if (!strcmp(value, "Creator not found.")) {
 							printf("\033[92mCancel. Continue.\033[m");
 							break;
 						}
 						failed = 1;
-						lastName[0] = '\0'; 
+						lastName[0] = '\0';
 						usleep(3000000);
 					}
 				}
@@ -525,13 +534,15 @@ loopstart:
 				free(userPageBuffer);
 				fclose(userFile);
 			} else {
-				fprintf(stderr, "\033[1;91mFailed to open userFile on user #%i in findUsernames()!\033[m", i);
+				fprintf(stderr,
+					"\033[1;91mFailed to open userFile on user #%i in findUsernames()!\033[m", i);
 				failed_page = 1;
 				failed_count++;
 			}
 		}
 		snprintf(postList[i].userName, 25, "%s", lastName);
-		if (failed_count > 5 && failed_page) exit(1);
+		if (failed_count > 5 && failed_page)
+			exit(1);
 		if (failed || failed_page) {
 			usleep(1000);
 			goto loopstart;
@@ -542,7 +553,7 @@ loopstart:
 	return 0;
 }
 
-void outputJson(FILE* jsonFile) {
+void outputJson(FILE *jsonFile) {
 	fprintf(jsonFile, "[");
 	char lastUser[USERID_LEN];
 	int firstEntry = 0;
@@ -550,22 +561,25 @@ void outputJson(FILE* jsonFile) {
 		firstEntry = 0;
 		if (i == 0) {
 			snprintf(lastUser, USERID_LEN, "%s", postList[i].user);
-			fprintf(jsonFile, "{\"id\":\"%s\",\"name\":\"%s\",\"entries\":[", lastUser, postList[i].userName);
+			fprintf(jsonFile, "{\"id\":\"%s\",\"name\":\"%s\",\"entries\":[", lastUser,
+				postList[i].userName);
 			firstEntry = 1;
-		}
-		else if (strcmp(lastUser, postList[i].user) != 0) {
+		} else if (strcmp(lastUser, postList[i].user) != 0) {
 			snprintf(lastUser, USERID_LEN, "%s", postList[i].user);
-			fprintf(jsonFile, "]},{\"id\":\"%s\",\"name\":\"%s\",\"entries\":[", lastUser, postList[i].userName);
+			fprintf(jsonFile, "]},{\"id\":\"%s\",\"name\":\"%s\",\"entries\":[", lastUser,
+				postList[i].userName);
 			firstEntry = 1;
 		}
-		if (!firstEntry) fprintf(jsonFile, ",");
+		if (!firstEntry)
+			fprintf(jsonFile, ",");
 		fprintf(jsonFile,
-				"{\"id\":\"%s\",\"published\":\"%s\",\"service\":\"%s\","
-				"\"title\":\"%s\",\"link\":\"https://kemono.cr/%s/user/%s/post/%s\"}", 
-				postList[i].id, postList[i].published, postList[i].service, 
-				postList[i].title, postList[i].service, postList[i].user, postList[i].id);
+			"{\"id\":\"%s\",\"published\":\"%s\",\"service\":\"%s\","
+			"\"title\":\"%s\",\"link\":\"https://kemono.cr/%s/user/%s/post/%s\"}",
+			postList[i].id, postList[i].published, postList[i].service, postList[i].title,
+			postList[i].service, postList[i].user, postList[i].id);
 	}
-	if (postListPos != 0) fprintf(jsonFile, "]}");
+	if (postListPos != 0)
+		fprintf(jsonFile, "]}");
 	fprintf(jsonFile, "]");
 }
 
@@ -596,7 +610,6 @@ int copyUserIds() {
 	return 0;
 }
 
-
 int outputSave(int useCustomSavesFolder, char customSavesFolder[], char searchTerm[], char filterTerm[]) {
 	char target_path[PATH_MAX];
 	if (useCustomSavesFolder == 0) {
@@ -610,9 +623,10 @@ int outputSave(int useCustomSavesFolder, char customSavesFolder[], char searchTe
 		dirname(exe_path);
 		snprintf(target_path, sizeof(target_path), "%s/saves/%s - [%s].json", exe_path, searchTerm, filterTerm);
 	} else {
-		snprintf(target_path, sizeof(target_path), "%s/saves/%s - [%s].json", customSavesFolder, searchTerm, filterTerm);
+		snprintf(target_path, sizeof(target_path), "%s/saves/%s - [%s].json", customSavesFolder, searchTerm,
+			 filterTerm);
 	}
-	FILE* jsonFile = fopen(target_path, "w");
+	FILE *jsonFile = fopen(target_path, "w");
 	if (!jsonFile) {
 		printf("Failed to open external json file.");
 		exit(1);
@@ -635,12 +649,13 @@ int checkSaveExistance(int useCustomSavesFolder, char customSavesFolder[], char 
 		dirname(exe_path);
 		snprintf(target_path, sizeof(target_path), "%s/saves/%s - [%s].json", exe_path, searchTerm, filterTerm);
 	} else {
-		snprintf(target_path, sizeof(target_path), "%s/saves/%s - [%s].json", customSavesFolder, searchTerm, filterTerm);
+		snprintf(target_path, sizeof(target_path), "%s/saves/%s - [%s].json", customSavesFolder, searchTerm,
+			 filterTerm);
 	}
 	return (access(target_path, F_OK) == 0) ? 1 : 0;
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
 	int useExternalJsonFile = 0;
 	int bypassPostLimit = 0, pageDelay = 0, useCustomSavesFolder = 0, skipSaveCheck = 0, useUserIds = 0;
 	char externalJson[260];
@@ -649,26 +664,26 @@ int main(int argc, char* argv[]) {
 
 	while ((opt = getopt(argc, argv, "uj:d:f:si")) != -1) {
 		switch (opt) {
-			case 'u':
-				bypassPostLimit = 1;
-				break;
-			case 'j':
-				useExternalJsonFile = 1;
-				snprintf(externalJson, 260, "%s", optarg);
-				break;
-			case 'd':
-				pageDelay = atoi(optarg);
-				break;
-			case 'f':
-				useCustomSavesFolder = 1;
-				snprintf(customSavesFolder, sizeof(customSavesFolder), "%s", optarg);
-				break;
-			case 's':
-				skipSaveCheck = 1;
-				break;
-			case 'i':
-				useUserIds = 1;
-				break;
+		case 'u':
+			bypassPostLimit = 1;
+			break;
+		case 'j':
+			useExternalJsonFile = 1;
+			snprintf(externalJson, 260, "%s", optarg);
+			break;
+		case 'd':
+			pageDelay = atoi(optarg);
+			break;
+		case 'f':
+			useCustomSavesFolder = 1;
+			snprintf(customSavesFolder, sizeof(customSavesFolder), "%s", optarg);
+			break;
+		case 's':
+			skipSaveCheck = 1;
+			break;
+		case 'i':
+			useUserIds = 1;
+			break;
 		}
 	}
 
@@ -677,11 +692,11 @@ int main(int argc, char* argv[]) {
 	static char urlbase[130] = "https://kemono.cr/api/v1/posts?q=";
 	char searchTerm[40];
 	char filterTerm[40];
-	FILE* pagefile = NULL;
+	FILE *pagefile = NULL;
 	int runLoop = 1;
 	int postVar = 0;
 	int maxPost = 1;
-	postList = malloc(sizeof(struct Post)*50);
+	postList = malloc(sizeof(struct Post) * 50);
 	if (postList == NULL) {
 		fprintf(stderr, "Failed to allocate space for memoryList.");
 		exit(1);
@@ -697,15 +712,15 @@ int main(int argc, char* argv[]) {
 	filterTerm[strcspn(filterTerm, "\n")] = 0;
 	stringEncode(searchTerm, strlen(searchTerm));
 
-	if((!skipSaveCheck) & checkSaveExistance(useCustomSavesFolder, customSavesFolder, searchTerm, filterTerm)) {
+	if ((!skipSaveCheck) & checkSaveExistance(useCustomSavesFolder, customSavesFolder, searchTerm, filterTerm)) {
 		fprintf(stderr, "This search is already saved! Rerun program with -s option to skip this check.\n");
 		return 1;
 	}
 
 	strcat(urlbase, searchTerm);
 	printf("\nFull URL base: %s", urlbase);
-	
-	CURL* easy_handler = curl_easy_init();
+
+	CURL *easy_handler = curl_easy_init();
 	while (postVar < maxPost) {
 		char urlfull[140];
 		char countstring[10];
@@ -718,7 +733,7 @@ int main(int argc, char* argv[]) {
 		pagefile = fopen("page.txt", "w+");
 		if (pagefile) {
 			curl_easy_setopt(easy_handler, CURLOPT_WRITEDATA, pagefile);
-			usleep(pageDelay*1000);
+			usleep(pageDelay * 1000);
 			CURLcode res = curl_easy_perform(easy_handler);
 			if (res != CURLE_OK) {
 				fprintf(stderr, "CURL FAILED");
@@ -749,10 +764,10 @@ int main(int argc, char* argv[]) {
 			getCount(pagefile);
 		}
 		int postReturn;
-		while(1) {
-			char* postStr;
+		while (1) {
+			char *postStr;
 			postReturn = getPost(pagefile, &postStr);
-			if (postReturn != 0){
+			if (postReturn != 0) {
 				free(postStr);
 				break;
 			}
@@ -760,10 +775,12 @@ int main(int argc, char* argv[]) {
 			free(postStr);
 		}
 
-pageRepeat:
-		if (postReturn != 1 || jsonCompletenes == 1) postVar += 50;
-		else{
-			if (jsonCompletenes == 0)printf("repeating page because of DDoS protection.");
+	pageRepeat:
+		if (postReturn != 1 || jsonCompletenes == 1)
+			postVar += 50;
+		else {
+			if (jsonCompletenes == 0)
+				printf("repeating page because of DDoS protection.");
 			char ch;
 			rewind(pagefile);
 			while ((ch = fgetc(pagefile)) != EOF) {
@@ -776,19 +793,20 @@ pageRepeat:
 		printProgress(postVar, maxPost);
 		fflush(stdout);
 		fclose(pagefile);
-		//usleep(1000000);
+		// usleep(1000000);
 	}
 	curl_easy_cleanup(easy_handler);
 
-
 	printf("Sorting %i posts.", postListPos);
 	qsort(postList, postListPos, sizeof(struct Post), comparePosts);
-	
-	if (useUserIds == 1) copyUserIds();
-	else findUsernames();
+
+	if (useUserIds == 1)
+		copyUserIds();
+	else
+		findUsernames();
 
 	printAllPosts();
-	FILE* jsonFile;
+	FILE *jsonFile;
 	if (useExternalJsonFile) {
 		jsonFile = fopen(externalJson, "w");
 		if (!jsonFile) {
