@@ -2,7 +2,7 @@
 # KemonoSearchC
 
 ![Static Badge](https://img.shields.io/badge/Platform-Linux-green)
-![Website](https://img.shields.io/website?url=https%3A%2F%2Fkemono.cr%2Fapi%2Fv1%2Fposts%2Frandom&up_message=UP&down_message=DOWN&label=API&cacheSeconds=600)
+![Website](https://img.shields.io/website?url=https%3A%2F%2Fpawchive.pw%2Fapi%2Fv1%2Fposts%2Frandom&up_message=UP&down_message=DOWN&label=API&cacheSeconds=600)
 
 A terminal based utility for retrieving posts from the Kemono website,
 allowing for filtering for specific strings in the post title.
