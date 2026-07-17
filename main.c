@@ -13,6 +13,12 @@
 
 #define USERID_LEN 10
 
+#ifndef DOMAIN_URL
+#define DOMAIN_URL "pawchive.pw"
+#endif
+
+#define Error(x) "\033[91m" x "\033[m"
+
 struct Post {
 	char id[10];
 	char user[USERID_LEN];
@@ -268,14 +274,16 @@ int getPost(FILE *pagefile, char **outStr) {
 	char c;
 	char *post = malloc(sizeof(char) * 10);
 	while ((c = getc(pagefile))) {
+		/*
 		if (c == -1) {
 			*outStr = post;
 			fprintf(stderr, "\033[1;91mError while seeking.\033[m");
 			return 1;
 		}
+		*/
 		if (c == '}' || c == -1) {
 			*outStr = post;
-			return -1;
+			return -1; // End of post DDoS
 		}
 		if (c == '{') {
 			depth++;
@@ -362,6 +370,25 @@ void printAllPosts() {
 int checkFilter(struct Post post, char filterTerm[]) {
 	printf("\nChecking [%s] against [%s];", filterTerm, post.title);
 	return ((strcasestr(post.title, filterTerm) != NULL) ? 1 : 0);
+}
+
+enum PageType { EMPTY, NORMAL, DDOS, OTHERERR };
+
+enum PageType getPageType(FILE *pagefile) {
+	rewind(pagefile);
+	char ch = getc(pagefile);
+	if (ch != '[') {
+		fprintf(stderr, Error("First character is '%c'[%i] not '['.\n"), ch, ch);
+		if (ch == '<')
+			return DDOS;
+		else
+			return OTHERERR;
+	}
+	ch = getc(pagefile);
+	if (ch == ']')
+		return EMPTY;
+	else
+		return NORMAL;
 }
 
 int processPost(char *str, char filterTerm[]) {
@@ -468,7 +495,7 @@ int findUsernames() {
 			userFile = fopen("user.txt", "w+");
 			if (userFile) {
 				curl_easy_setopt(curl_handler, CURLOPT_WRITEDATA, userFile);
-				char userURLstart[64] = "https://kemono.cr/api/v1/";
+				char userURLstart[64] = "https://" DOMAIN_URL "/api/v1/";
 				static char userURLmid[] = "/user/";
 				static char userURLend[] = "/profile";
 				strcat(userURLstart, postList[i].service);
@@ -574,7 +601,7 @@ void outputJson(FILE *jsonFile) {
 			fprintf(jsonFile, ",");
 		fprintf(jsonFile,
 			"{\"id\":\"%s\",\"published\":\"%s\",\"service\":\"%s\","
-			"\"title\":\"%s\",\"link\":\"https://kemono.cr/%s/user/%s/post/%s\"}",
+			"\"title\":\"%s\",\"link\":\"https://" DOMAIN_URL "/%s/user/%s/post/%s\"}",
 			postList[i].id, postList[i].published, postList[i].service, postList[i].title,
 			postList[i].service, postList[i].user, postList[i].id);
 	}
@@ -689,13 +716,14 @@ int main(int argc, char *argv[]) {
 
 	initSavesFolder(useCustomSavesFolder, customSavesFolder);
 
-	static char urlbase[130] = "https://kemono.cr/api/v1/posts?q=";
+	static char urlbase[130] = "https://" DOMAIN_URL "/api/v1/posts?q=";
 	char searchTerm[40];
 	char filterTerm[40];
 	FILE *pagefile = NULL;
 	int runLoop = 1;
 	int postVar = 0;
 	int maxPost = 1;
+	enum PageType pageType = NORMAL;
 	postList = malloc(sizeof(struct Post) * 50);
 	if (postList == NULL) {
 		fprintf(stderr, "Failed to allocate space for memoryList.");
@@ -721,7 +749,7 @@ int main(int argc, char *argv[]) {
 	printf("\nFull URL base: %s", urlbase);
 
 	CURL *easy_handler = curl_easy_init();
-	while (postVar < maxPost) {
+	while (/*postVar < maxPost*/ pageType != EMPTY) {
 		char urlfull[140];
 		char countstring[10];
 		snprintf(countstring, 9, "&o=%d", postVar);
@@ -749,6 +777,9 @@ int main(int argc, char *argv[]) {
 			jsonCompletenes = 1;
 			goto pageRepeat;
 		}
+		rewind(pagefile);
+		pageType = getPageType(pagefile);
+		/*
 		if (postVar == 0) {
 			int count = getCount(pagefile);
 			if (count == -1) {
@@ -763,6 +794,8 @@ int main(int argc, char *argv[]) {
 		} else {
 			getCount(pagefile);
 		}
+		*/
+		rewind(pagefile);
 		int postReturn;
 		while (1) {
 			char *postStr;
@@ -776,7 +809,7 @@ int main(int argc, char *argv[]) {
 		}
 
 	pageRepeat:
-		if (postReturn != 1 || jsonCompletenes == 1)
+		if (pageType != DDOS || jsonCompletenes != 0)
 			postVar += 50;
 		else {
 			if (jsonCompletenes == 0)

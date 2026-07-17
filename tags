@@ -1,36 +1,54 @@
-!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
-!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
-!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
-!_TAG_PROGRAM_NAME	Exuberant Ctags	//
-!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
-!_TAG_PROGRAM_VERSION	5.9~svn20110310	//
-Post	main.c	/^struct Post {$/;"	s	file:
-USERID_LEN	main.c	44;"	d	file:
-checkFilter	main.c	/^int checkFilter(struct Post post, char filterTerm[]) {$/;"	f
-comparePosts	main.c	/^int comparePosts(const void* pv1, const void* pv2) {$/;"	f
-copyUserIds	main.c	/^int copyUserIds() {$/;"	f
-enableANSI	main.c	/^int enableANSI() {$/;"	f
-findUsernames	main.c	/^int findUsernames() {$/;"	f
-getCount	main.c	/^int getCount(FILE* pageFile) {$/;"	f
-getNextKeyValue	main.c	/^int getNextKeyValue($/;"	f
-getPost	main.c	/^int getPost(FILE* pagefile, char** outStr) {$/;"	f
-id	main.c	/^	char id[10];$/;"	m	struct:Post	file:
-initSavesFolder	main.c	/^int initSavesFolder(int useCustom, char customPath[]) {$/;"	f
-notANumber	main.c	/^int notANumber(char* str) {$/;"	f
-outputJson	main.c	/^void outputJson(FILE* jsonFile) {$/;"	f
-postList	main.c	/^struct Post* postList;$/;"	v	typeref:struct:Post
-postListPos	main.c	/^int postListPos = 0;$/;"	v
-postListSize	main.c	/^int postListSize = 0;$/;"	v
-printAllPosts	main.c	/^void printAllPosts() {$/;"	f
-printPost	main.c	/^void printPost(struct Post post) {$/;"	f
-printProgress	main.c	/^int printProgress(int prog, int total) {$/;"	f
-processPost	main.c	/^int processPost(char* str, char filterTerm[]) {$/;"	f
-published	main.c	/^	char published[20];$/;"	m	struct:Post	file:
-readUntil	main.c	/^size_t readUntil(char **buffer, size_t* bufferLen, char deliminator, FILE* inputFile) {$/;"	f
-savePost	main.c	/^int savePost(struct Post post) {$/;"	f
-service	main.c	/^	char service[15];$/;"	m	struct:Post	file:
-stringEncode	main.c	/^int stringEncode(char* str, int strLen) {$/;"	f
-title	main.c	/^	char title[70];$/;"	m	struct:Post	file:
-user	main.c	/^	char user[USERID_LEN];$/;"	m	struct:Post	file:
-userName	main.c	/^	char userName[25];$/;"	m	struct:Post	file:
-usleep	main.c	21;"	d	file:
+DDOS	main.c	375
+DOMAIN_URL	main.c	17
+EMPTY	main.c	375
+ENDOFVALUE	main.c	53
+ESCAPED	main.c	52
+ESCAPED	main.c	181
+Error	main.c	/^#define Error(x) "\\033[91m" x "\\033[m"$/
+JsonState	main.c	181
+KEY	main.c	53
+Mmain	main.c	/^int main(int argc, char *argv[]) {$/
+NO	main.c	271
+NORMAL	main.c	181
+NORMAL	main.c	375
+OTHERERR	main.c	375
+PageType	main.c	375
+Post	main.c	22
+REGULAR	main.c	52
+SEEK	main.c	53
+SEEKEND	main.c	53
+SEPARATOR	main.c	53
+STRING	main.c	181
+USERID_LEN	main.c	14
+VALUE	main.c	53
+YES	main.c	271
+checkFilter	main.c	/^int checkFilter(struct Post post, char filterTerm[/
+checkSaveExistance	main.c	/^int checkSaveExistance(int useCustomSavesFolder, c/
+comparePosts	main.c	/^int comparePosts(const void *pv1, const void *pv2)/
+copyUserIds	main.c	/^int copyUserIds() {$/
+findUsernames	main.c	/^int findUsernames() {$/
+getCount	main.c	/^int getCount(FILE *pageFile) {$/
+getNextKeyValue	main.c	/^int getNextKeyValue(char *str, int start, char **k/
+getPost	main.c	/^int getPost(FILE *pagefile, char **outStr) {$/
+id	main.c	23
+initSavesFolder	main.c	/^int initSavesFolder(int useCustom, char customPath/
+notANumber	main.c	/^int notANumber(char *str) {$/
+outputJson	main.c	/^void outputJson(FILE *jsonFile) {$/
+outputSave	main.c	/^int outputSave(int useCustomSavesFolder, char cust/
+pageType	main.c	/^enum PageType pageType(FILE *pagefile) {$/
+postList	main.c	31
+postListPos	main.c	33
+postListSize	main.c	32
+printAllPosts	main.c	/^void printAllPosts() {$/
+printPost	main.c	/^void printPost(struct Post post) {$/
+printProgress	main.c	/^int printProgress(int prog, int total) {$/
+processPost	main.c	/^int processPost(char *str, char filterTerm[]) {$/
+published	main.c	28
+readUntil	main.c	/^size_t readUntil(char **buffer, size_t *bufferLen,/
+savePost	main.c	/^int savePost(struct Post post) {$/
+service	main.c	26
+stringEncode	main.c	/^int stringEncode(char *str, int strLen) {$/
+title	main.c	27
+user	main.c	24
+userName	main.c	25
+verifyJsonCompleteness	main.c	/^int verifyJsonCompleteness(FILE *pagefile) {$/
